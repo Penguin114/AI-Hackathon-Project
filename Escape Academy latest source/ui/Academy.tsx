@@ -91,13 +91,14 @@ export default function Academy() {
       <nav aria-label="Main navigation"><button className="nav-help" onClick={()=>setShowHelp(true)}><Compass size={16}/> How to play</button><button onClick={openHistory} aria-label="Journal"><BookOpen size={16}/> <span>Journal</span></button><button className="button nav-play" onClick={()=>focus()}>Play now <ArrowRight size={16}/></button></nav>
     </div></header>
     {stage==="home" && <main className="simple-home">
-      <div className="simple-intro"><h1>Learn your way <em>out.</em></h1><p>{initial}</p></div>
+      <div className="home-art" role="img" aria-label="A warmly lit clockwork tower room" />
+      <div className="home-content"><div className="simple-intro"><h1>Learn your way <em>out.</em></h1><p>{initial}</p></div>
       <form className="simple-setup" onSubmit={e=>{e.preventDefault();void generate();}}>
         <label htmlFor="topic">Topic or study notes</label>
         <textarea ref={topicInput} id="topic" value={setup.topic} onChange={e=>setSetup({...setup,topic:e.target.value})} placeholder="Enter a topic or paste your notes here" minLength={2} maxLength={12000} required rows={6}/>
         <fieldset><legend>Difficulty</legend><div className="difficulty-options">{([["Explorer","Easy"],["Adventurer","Medium"],["Expert","Hard"]] as const).map(([value,label])=><label key={value} className={setup.level===value?"selected":""}><input type="radio" name="difficulty" value={value} checked={setup.level===value} onChange={()=>setSetup({...setup,level:value})}/>{label}</label>)}</div></fieldset>
         <button className="button primary create" type="submit">Create adventure <ArrowRight size={19}/></button>
-      </form>
+      </form></div>
     </main>}
     {stage==="loading" && <main className="shell state-wrap"><div className="state-card preparing"><div className="state-icon"><Compass size={42}/></div><span className="eyebrow">PREPARING YOUR ADVENTURE</span><h1>Setting the scene.</h1><p>Stocking the room with clues and puzzles.</p><div className="load-bar"/><button className="text-button" onClick={home}>Cancel</button></div></main>}
     {stage==="recovery" && <main className="shell state-wrap"><div className="state-card"><div className="state-icon"><KeyRound size={34}/></div><h1>There’s another door.</h1><p>{notice}</p><div className="state-actions"><button className="button primary" onClick={()=>session?launch(session):void sample(defaultSetup)}>Play sample adventure <ArrowRight size={18}/></button><button className="button secondary" onClick={()=>focus()}>Edit my topic</button></div></div></main>}

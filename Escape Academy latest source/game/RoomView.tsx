@@ -27,6 +27,7 @@ export default function RoomView(props: Props) {
     const camera=new T.PerspectiveCamera(65,1,.045,32);
     camera.rotation.order="YXZ";camera.position.set(.05,1.68,3.56);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+    renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
     renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.25;
     renderer.domElement.setAttribute("aria-label","First-person view of the current room");
     host.prepend(renderer.domElement);

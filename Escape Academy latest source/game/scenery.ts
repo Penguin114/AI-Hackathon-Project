@@ -142,7 +142,10 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number) {
   lamp(-3.85,2.76,-4.43);lamp(2.15,2.76,-4.43);lamp(-3.1,1.26,-3.63);
   const glow = new T.PointLight("#ffa960",17,10,2);glow.position.set(.2,3.85,.5);scene.add(glow);
   const ambient = new T.HemisphereLight("#f7deb2","#43352c",1.86);scene.add(ambient);
-  const pale = new T.DirectionalLight(windowColor,1.24);pale.position.set(6,4,1);scene.add(pale);
+  const pale = new T.DirectionalLight(windowColor,1.24);pale.position.set(6,8,3);pale.castShadow=true;
+  pale.shadow.mapSize.set(1024,1024);pale.shadow.camera.left=-7;pale.shadow.camera.right=7;
+  pale.shadow.camera.top=7;pale.shadow.camera.bottom=-7;pale.shadow.camera.near=.5;pale.shadow.camera.far=25;
+  pale.shadow.normalBias=.03;scene.add(pale);
   const litWindow = new T.MeshStandardMaterial({color:windowColor,emissive:windowColor,emissiveIntensity:.65});
   for(const pos of [-1.47,.12]) {
     box(.32,2.25,1.4,4.76,2.57,pos,trim);
