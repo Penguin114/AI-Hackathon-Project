@@ -14,6 +14,9 @@ const initial = "Turn anything you want to learn into an escape-room adventure."
 
 export default function Academy() {
   const [setup,setSetup]=useState<Setup>({...defaultSetup,topic:""});
+  const [contentMode,setContentMode]=useState<"topic"|"notes">("topic");
+  const [topicText,setTopicText]=useState("");
+  const [notesText,setNotesText]=useState("");
   const [stage,setStage]=useState<"home"|"loading"|"recovery"|"play"|"done">("home");
   const [session,setSession]=useState<Session|null>(null);
   const [notice,setNotice]=useState("");
@@ -24,6 +27,7 @@ export default function Academy() {
   const [historyStatus,setHistoryStatus]=useState("");
   const currentRequest=useRef<AbortController|null>(null);
   const topicInput=useRef<HTMLTextAreaElement>(null);
+  const notesInput=useRef<HTMLTextAreaElement>(null);
   const started=useRef(false);
   useEffect(()=>()=>currentRequest.current?.abort(),[]);
   useEffect(()=>{if(stage!=="home")window.scrollTo(0,0);},[stage]);
@@ -33,9 +37,9 @@ export default function Academy() {
   },[]);
   const home=()=>{ currentRequest.current?.abort();started.current=false;setStage("home");setSession(null);setNotice("");setResult(null);window.scrollTo(0,0); };
   const focus=(topic?:string)=>{
-    if(topic!==undefined)setSetup(prev=>({...prev,topic}));
+    if(topic!==undefined){if(contentMode==="notes")setNotesText(topic);else setTopicText(topic);}
     if(stage!=="home")home();
-    requestAnimationFrame(()=>{topicInput.current?.scrollIntoView({behavior:"smooth",block:"center"});topicInput.current?.focus({preventScroll:true});});
+    requestAnimationFrame(()=>{const input=contentMode==="notes"?notesInput.current:topicInput.current;input?.scrollIntoView({behavior:"smooth",block:"center"});input?.focus({preventScroll:true});});
   };
   const openHistory=async()=>{
     setShowHistory(true);setHistoryStatus("Loading saved adventures…");
@@ -64,10 +68,9 @@ export default function Academy() {
     started.current=false;launch({plan,id,topic,setup:{...settings,topic}});
   }
   async function generate() {
-    if(started.current || setup.topic.trim().length<2)return;
-    const input=setup.topic.trim();
-    const isNotes=input.length>100 || input.includes("\n");
-    const settings={...setup,topic:isNotes?"Study notes":input,notes:isNotes?input:undefined};
+    const input=(contentMode==="notes"?notesText:topicText).trim();
+    if(started.current || input.length<2)return;
+    const settings={...setup,topic:contentMode==="notes"?"Study notes":input,notes:contentMode==="notes"?input:undefined};
     started.current=true;setStage("loading");
     const controller=new AbortController();
     currentRequest.current=controller;
@@ -94,14 +97,17 @@ export default function Academy() {
       <div className="home-art" role="img" aria-label="A warmly lit clockwork tower room" />
       <div className="home-content"><div className="simple-intro"><h1>Learn your way <em>out.</em></h1><p>{initial}</p></div>
       <form className="simple-setup" onSubmit={e=>{e.preventDefault();void generate();}}>
-        <label htmlFor="topic">Topic or study notes</label>
-        <textarea ref={topicInput} id="topic" value={setup.topic} onChange={e=>setSetup({...setup,topic:e.target.value})} placeholder="Enter a topic or paste your notes here" minLength={2} maxLength={12000} required rows={6}/>
+        <div className="content-mode" role="group" aria-label="Choose what to study">
+          <button type="button" className={contentMode==="topic"?"selected":""} aria-pressed={contentMode==="topic"} onClick={()=>setContentMode("topic")}>Topic</button>
+          <button type="button" className={contentMode==="notes"?"selected":""} aria-pressed={contentMode==="notes"} onClick={()=>setContentMode("notes")}>Notes</button>
+        </div>
+        {contentMode==="topic"?<><label htmlFor="topic">What topic do you want to learn?</label><textarea ref={topicInput} id="topic" value={topicText} onChange={e=>setTopicText(e.target.value)} placeholder="For example: photosynthesis or the causes of World War I" minLength={2} maxLength={100} required rows={4}/></>:<><label htmlFor="study-notes">Paste your study notes</label><textarea ref={notesInput} id="study-notes" value={notesText} onChange={e=>setNotesText(e.target.value)} placeholder="Paste your class notes here. The game will turn them into study questions." minLength={2} maxLength={12000} required rows={6}/></>}
         <fieldset><legend>Difficulty</legend><div className="difficulty-options">{([["Explorer","Easy"],["Adventurer","Medium"],["Expert","Hard"]] as const).map(([value,label])=><label key={value} className={setup.level===value?"selected":""}><input type="radio" name="difficulty" value={value} checked={setup.level===value} onChange={()=>setSetup({...setup,level:value})}/>{label}</label>)}</div></fieldset>
         <button className="button primary create" type="submit">Create adventure <ArrowRight size={19}/></button>
       </form></div>
     </main>}
     {stage==="loading" && <main className="shell state-wrap"><div className="state-card preparing"><div className="state-icon"><Compass size={42}/></div><span className="eyebrow">PREPARING YOUR ADVENTURE</span><h1>Setting the scene.</h1><p>Stocking the room with clues and puzzles.</p><div className="load-bar"/><button className="text-button" onClick={home}>Cancel</button></div></main>}
-    {stage==="recovery" && <main className="shell state-wrap"><div className="state-card"><div className="state-icon"><KeyRound size={34}/></div><h1>There’s another door.</h1><p>{notice}</p><div className="state-actions"><button className="button primary" onClick={()=>session?launch(session):void sample(defaultSetup)}>Play sample adventure <ArrowRight size={18}/></button><button className="button secondary" onClick={()=>focus()}>Edit my topic</button></div></div></main>}
+    {stage==="recovery" && <main className="shell state-wrap"><div className="state-card"><div className="state-icon"><KeyRound size={34}/></div><h1>There’s another door.</h1><p>{notice}</p><div className="state-actions"><button className="button primary" onClick={()=>session?launch(session):void sample(defaultSetup)}>Play sample adventure <ArrowRight size={18}/></button><button className="button secondary" onClick={()=>focus()}>{contentMode==="notes"?"Edit my notes":"Edit my topic"}</button></div></div></main>}
     {stage==="play" && session && <PlayRoom {...session} onLeave={home} onRestart={()=>void sampleOrRestart()} onComplete={progress=>{setResult(progress);setStage("done");}}/>}
     {stage==="done" && result && session && <main className="shell state-wrap"><div className="state-card recap"><div className="state-icon"><GraduationCap size={40}/></div><span className="eyebrow">ADVENTURE COMPLETE</span><h1>You escaped!</h1><p>{session.plan.title}</p><div className="recap-stats"><span><KeyRound size={17}/> {result.solved} puzzles solved</span><span><Sparkles size={17}/> {result.hints} hints</span></div><div className="recap-lists"><div><h2>What you learned</h2><ul>{session.plan.objectives.map(x=><li key={x}><Check size={17}/>{x}</li>)}</ul></div><div><h2>What to review</h2><ul>{session.plan.review.map(x=><li key={x}><ChevronRight size={17}/>{x}</li>)}</ul></div><div><h2>Puzzles solved</h2><ul>{session.plan.rooms.map(x=><li key={x.name}><KeyRound size={16}/><span><strong>{x.puzzle.name}</strong><br/>{x.puzzle.explanation}</span></li>)}</ul></div></div><button className="button primary" onClick={()=>focus("")}>Play another room <ArrowRight size={18}/></button></div></main>}
     
