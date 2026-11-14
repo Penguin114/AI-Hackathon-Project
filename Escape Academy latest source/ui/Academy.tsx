@@ -10,6 +10,12 @@ import type { Progress } from "@/lib/db";
 const PlayRoom = dynamic(()=>import("./PlayRoom"),{ssr:false,loading:()=> <div className="preparing"><Compass/><p>Opening the room…</p></div>});
 type Session = { plan: Adventure; id: string; topic: string; setup: Setup };
 type History = { id: string; title: string; topic: string; progress: Progress };
+const worldOptions = [
+  { value:"space", label:"Space station" }, { value:"ocean", label:"Underwater laboratory" },
+  { value:"city", label:"Future city" }, { value:"alien", label:"Alien research base" },
+  { value:"tower", label:"Clockwork tower" }, { value:"greenhouse", label:"Greenhouse" },
+  { value:"archive", label:"Archive" }, { value:"lab", label:"Science laboratory" },
+] as const;
 const initial = "Turn anything you want to learn into an escape-room adventure.";
 
 export default function Academy() {
@@ -50,7 +56,13 @@ export default function Academy() {
   async function sample(settings:Setup) {
     if(started.current)return;
     started.current=true;
-    const {plan,matched}=sampleFor(settings);
+    const {plan:samplePlan,matched}=sampleFor(settings);
+    const worldName=worldOptions.find(option=>option.value===settings.preferredTheme)?.label;
+    const plan=worldName && settings.preferredTheme && settings.preferredTheme!==samplePlan.theme ? {
+      ...samplePlan, theme:settings.preferredTheme, title:worldName+" · Practice escape",
+      setting:worldName,
+      premise:"The original route out is sealed. Investigate the stations in each chamber and restore their escape mechanisms.",
+    } : samplePlan;
     const topic=matched?settings.topic:"Fractions";
     const controller=new AbortController();
     currentRequest.current=controller;
@@ -72,12 +84,12 @@ export default function Academy() {
     const controller=new AbortController();
     currentRequest.current=controller;
     try {
-      const response=await fetch("/api/adventure",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(settings),signal:AbortSignal.any([controller.signal,AbortSignal.timeout(44000)])});
+      const response=await fetch("/api/adventure",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(settings),signal:AbortSignal.any([controller.signal,AbortSignal.timeout(200000)])});
       if(!response.ok)throw new Error();
       const data=await response.json();
       const plan=validatePlan(data.plan,settings.minutes);
       const entry={plan,id:data.id,topic:data.topic,setup:{...settings,topic:data.topic}};
-      if(data.source==="sample"&&(data.topic!==settings.topic||!!settings.notes?.trim())){setSession(entry);setNotice(data.notice);setStage("recovery");}
+      if(data.source==="sample"){setSession(entry);setNotice(data.notice);setStage("recovery");}
       else launch(entry);
     } catch {
       if(controller.signal.aborted)return;
@@ -96,17 +108,24 @@ export default function Academy() {
       <form className="simple-setup" onSubmit={e=>{e.preventDefault();void generate();}}>
         <label htmlFor="topic">Topic or study notes</label>
         <textarea ref={topicInput} id="topic" value={setup.topic} onChange={e=>setSetup({...setup,topic:e.target.value})} placeholder="Enter a topic or paste your notes here" minLength={2} maxLength={12000} required rows={6}/>
+        <label htmlFor="world">World</label>
+        <select id="world" value={setup.preferredTheme ?? ""} onChange={e=>setSetup({...setup,preferredTheme:(e.target.value || undefined) as Setup["preferredTheme"]})}>
+          <option value="">Choose for my topic</option>
+          {worldOptions.map(world=><option value={world.value} key={world.value}>{world.label}</option>)}
+        </select>
         <fieldset><legend>Difficulty</legend><div className="difficulty-options">{([["Explorer","Easy"],["Adventurer","Medium"],["Expert","Hard"]] as const).map(([value,label])=><label key={value} className={setup.level===value?"selected":""}><input type="radio" name="difficulty" value={value} checked={setup.level===value} onChange={()=>setSetup({...setup,level:value})}/>{label}</label>)}</div></fieldset>
         <button className="button primary create" type="submit">Create adventure <ArrowRight size={19}/></button>
-      </form></div>
+      </form>
+      <button className="text-button world-preview" onClick={()=>void sample({...defaultSetup,topic:setup.preferredTheme==="ocean"?"Ocean zones":defaultSetup.topic,preferredTheme:setup.preferredTheme})}>Play a sample in this world <ArrowRight size={15}/></button>
+      </div>
     </main>}
-    {stage==="loading" && <main className="shell state-wrap"><div className="state-card preparing"><div className="state-icon"><Compass size={42}/></div><span className="eyebrow">PREPARING YOUR ADVENTURE</span><h1>Setting the scene.</h1><p>Stocking the room with clues and puzzles.</p><div className="load-bar"/><button className="text-button" onClick={home}>Cancel</button></div></main>}
-    {stage==="recovery" && <main className="shell state-wrap"><div className="state-card"><div className="state-icon"><KeyRound size={34}/></div><h1>There’s another door.</h1><p>{notice}</p><div className="state-actions"><button className="button primary" onClick={()=>session?launch(session):void sample(defaultSetup)}>Play sample adventure <ArrowRight size={18}/></button><button className="button secondary" onClick={()=>focus()}>Edit my topic</button></div></div></main>}
+    {stage==="loading" && <main className="shell state-wrap"><div className="state-card preparing"><div className="state-icon"><Compass size={42}/></div><span className="eyebrow">PREPARING YOUR ADVENTURE</span><h1>Setting the scene.</h1><p>Building your room and puzzles. This can take a minute.</p><div className="load-bar"/><button className="text-button" onClick={home}>Cancel</button></div></main>}
+    {stage==="recovery" && <main className="shell state-wrap"><div className="state-card"><div className="state-icon"><KeyRound size={34}/></div><h1>There’s another door.</h1><p>{notice}</p><div className="state-actions"><button className="button primary" onClick={()=>session?launch(session):void sample(defaultSetup)}>Play sample adventure <ArrowRight size={18}/></button><button className="button secondary" onClick={()=>{setStage("home");void generate();}}>Try again</button><button className="button secondary" onClick={()=>focus()}>Edit my topic</button></div></div></main>}
     {stage==="play" && session && <PlayRoom {...session} onLeave={home} onRestart={()=>void sampleOrRestart()} onComplete={progress=>{setResult(progress);setStage("done");}}/>}
     {stage==="done" && result && session && <main className="shell state-wrap"><div className="state-card recap"><div className="state-icon"><GraduationCap size={40}/></div><span className="eyebrow">ADVENTURE COMPLETE</span><h1>You escaped!</h1><p>{session.plan.title}</p><div className="recap-stats"><span><KeyRound size={17}/> {result.solved} puzzles solved</span><span><Sparkles size={17}/> {result.hints} hints</span></div><div className="recap-lists"><div><h2>What you learned</h2><ul>{session.plan.objectives.map(x=><li key={x}><Check size={17}/>{x}</li>)}</ul></div><div><h2>What to review</h2><ul>{session.plan.review.map(x=><li key={x}><ChevronRight size={17}/>{x}</li>)}</ul></div><div><h2>Puzzles solved</h2><ul>{session.plan.rooms.map(x=><li key={x.name}><KeyRound size={16}/><span><strong>{x.puzzle.name}</strong><br/>{x.puzzle.explanation}</span></li>)}</ul></div></div><button className="button primary" onClick={()=>focus("")}>Play another room <ArrowRight size={18}/></button></div></main>}
     
     {(showHelp||showHistory)&&<div className="modal-shade" onClick={()=>{setShowHelp(false);setShowHistory(false);}}><section className="modal global-modal" role="dialog" aria-modal="true" aria-label={showHelp?"How to play":"Adventure journal"} onClick={e=>e.stopPropagation()}><button autoFocus className="icon-button close" aria-label="Close" onClick={()=>{setShowHelp(false);setShowHistory(false);}}><X size={21}/></button>
-    {showHelp?<><span className="eyebrow"><Compass size={16}/> FIELD GUIDE</span><h2>How to play</h2><p>Drag to look around. Move with WASD, arrow keys or the on-screen arrows. Inspect glowing markers to find objects.</p><p>Look for field notes, collect a part from the cabinet, and fit it into the mechanism. Use the notes to solve the lock and open the next door.</p><p>The hint button reveals one tip at a time. Pause whenever you need a break.</p><button className="button primary" onClick={()=>setShowHelp(false)}><Check size={17}/> Got it</button></>:<><span className="eyebrow"><BookOpen size={16}/> YOUR PROGRESS</span><h2>Adventure journal</h2><p role="status">{historyStatus}</p><div className="journal-list">{history.map(x=><div key={x.id}><strong>{x.title}</strong><span>{x.topic} · {x.progress.complete?"Escaped":x.progress.solved+" solved"}</span></div>)}</div></>}
+    {showHelp?<><span className="eyebrow"><Compass size={16}/> FIELD GUIDE</span><h2>How to play</h2><p>Drag to look around. Move with WASD, arrow keys or the on-screen arrows. Inspect glowing markers to find objects.</p><p>Explore the room for records and inspect equipment up close. Use your inventory to review what you discover.</p><p>The hint button reveals one tip at a time. Pause whenever you need a break.</p><button className="button primary" onClick={()=>setShowHelp(false)}><Check size={17}/> Got it</button></>:<><span className="eyebrow"><BookOpen size={16}/> YOUR PROGRESS</span><h2>Adventure journal</h2><p role="status">{historyStatus}</p><div className="journal-list">{history.map(x=><div key={x.id}><strong>{x.title}</strong><span>{x.topic} · {x.progress.complete?"Escaped":x.progress.solved+" solved"}</span></div>)}</div></>}
     </section></div>}
   </>;
 

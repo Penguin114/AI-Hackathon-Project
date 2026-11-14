@@ -15,6 +15,20 @@ const lessons: Lesson[] = [
   { title: "The Living Greenhouse", setting: "A sealed ecosystem laboratory", theme: "greenhouse", premise: "The greenhouse’s ecosystem display has lost its power. Trace energy through the living exhibits to restart the model and open the gate.", steps: ["Grass", "Rabbit", "Fox"], facts: ["Makes sugars using light", "Gets energy by eating grass", "Gets energy by eating rabbits"], summary: ["Producers capture light energy and store it in sugars.", "Consumers obtain energy by eating other organisms.", "Food chains track energy transfer from food to eater."], practice: ["Arrange the organisms in the direction energy travels, starting with the producer.", "Grass captures sunlight. The rabbit eats the grass. The fox eats the rabbit.", "Energy flows from grass to rabbit to fox."], test: ["In a chain with grass, rabbits and foxes, which organism transfers energy from the producer to the fox?", "Grass makes sugars and the fox eats the animal that feeds on the grass.", "Rabbit"], code: ["Grass bears a 1, rabbit a 5, and fox a 7. Enter the digits in the direction energy travels.", "157"], grid: ["The exhibit sketch reads northwest fox, northeast rabbit, southwest grass, southeast hawk. Choose the organism that stores light energy and supplies it to a consumer.", "SW", "Grass is a producer. The rabbit obtains some of the energy grass stored by eating it."] },
 ];
 
+const oceanLesson: Lesson = {
+  title: "Below the Light",
+  setting: "A research outpost on the edge of the twilight zone",
+  theme: "ocean",
+  premise: "An overnight power fault has sealed the outpost. Its instruments and observation records still work. Find a route back to the surface.",
+  steps: ["Sunlight zone", "Twilight zone", "Midnight zone"],
+  facts: ["Enough light for photosynthesis", "Dim sunlight, too weak for photosynthesis", "No sunlight reaches this layer"],
+  summary: ["Sunlight fades as ocean depth increases.", "Bioluminescence is light produced by living organisms.", "Oxygen, light and pressure vary across the water column."],
+  practice: ["Arrange the survey zones in the order encountered on a descent.", "The last surface reading had enough sunlight for photosynthesis. The next camera recorded a dim blue glow. At the deepest stop, all the light came from the camera lamp.", "A descent passes through the sunlight, twilight and midnight zones in that order."],
+  test: ["An unpowered camera records a flash from a moving organism below the reach of sunlight. What produced the flash?", "The camera lamp was off, and there is no sunlight at the recorded depth. Some marine organisms generate their own light.", "Bioluminescence"],
+  code: ["Three tagged sensors carried these badges: midnight 7, sunlight 4, twilight 9. The recorder stores the tags in descent order.", "497"],
+  grid: ["The habitat map reads northwest: bright light, northeast: trace daylight, southwest: no daylight, southeast: surface reflections. Which quadrant is the midnight zone?", "SW", "The midnight zone lies below the reach of sunlight."],
+};
+
 function buildLesson(lesson: Lesson, setup: Setup): Adventure {
   const [a,b,c] = lesson.steps;
   const items = lesson.theme === "lab" ? ["Brass valve", "Calibration pin", "Sample cartridge", "Relay key"] : lesson.theme === "archive" ? ["Bronze stylus", "Stone seal", "Clay tablet", "Gate token"] : ["Brass gear", "Copper coupler", "Dial spindle", "Exit key"];
@@ -32,7 +46,7 @@ function buildLesson(lesson: Lesson, setup: Setup): Adventure {
     objectives: lesson.summary, review: [lesson.practice[2], lesson.summary[1]],
     rooms: [puzzles[0], ...middle, puzzles[3]].map((p,i) => ({
       name: p.name, objective: i === roomCount(setup.minutes) - 1 ? "Restore the exit mechanism and escape." : "Find the notes and repair the room’s mechanism.",
-      clues: [{ name: "Field notes", text: p.note }, { name: "Mechanic’s log", text: "The " + p.puzzle.name.toLowerCase() + " needs the " + items[i].toLowerCase() + " from the cabinet. The field notes explain how to set it." }],
+      clues: [{ name: "Field notes", text: p.note }, { name: "Mechanic’s log", text: lesson.theme==="ocean" ? "The recorder stores observations against a numbered station. The observations are still readable after the power fault." : "An inventory entry lists a " + items[i].toLowerCase() + " beside the " + p.puzzle.name.toLowerCase() + "." }],
       item: { name: items[i], text: "A missing part for the " + p.puzzle.name.toLowerCase() + "." }, use: "Fit the " + items[i].toLowerCase() + " into the mechanism.",
       puzzle: p.puzzle,
     })),
@@ -41,6 +55,7 @@ function buildLesson(lesson: Lesson, setup: Setup): Adventure {
 
 export function sampleFor(setup: Setup) {
   const t = setup.topic.toLowerCase();
+  if(t === "ocean zones")return { plan:buildLesson(oceanLesson,setup),matched:true };
   const index = [/fraction|math/, /water\s*cycle|weather|rain/, /egypt|nile/, /chemistry|phase change|states of matter/, /ecology|ecosystem|food chain|biology/].findIndex(re => re.test(t));
   return { plan: buildLesson(lessons[Math.max(index,0)],setup), matched: index >= 0 };
 }

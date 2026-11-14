@@ -2,11 +2,12 @@ import { z } from "zod";
 
 const line = (max: number) => z.string().min(1).max(max);
 const entry = z.strictObject({ name: line(50), text: line(500) });
-export const themes = ["tower", "lab", "archive", "greenhouse"] as const;
+export const themes = ["tower", "lab", "archive", "greenhouse", "space", "ocean", "city", "alien"] as const;
 export const levels = ["Explorer", "Adventurer", "Expert"] as const;
 export const setupSchema = z.strictObject({
   topic: z.string().trim().min(2).max(100),
   notes: z.string().trim().max(12000).optional(),
+  preferredTheme: z.enum(themes).optional(),
   level: z.enum(levels),
   minutes: z.union([z.literal(5), z.literal(10), z.literal(15)]),
 });
