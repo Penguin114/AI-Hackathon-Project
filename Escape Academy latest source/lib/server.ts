@@ -23,7 +23,7 @@ const progressSchema = z.strictObject({
   }),
 });
 const demoSchema = z.strictObject({ topic: z.string().min(2).max(100), plan: z.unknown() });
-export async function adventureApi(request: Request, db: AcademyStore, config: { key?: string; model?: string; hosted: boolean }) {
+export async function adventureApi(request: Request, db: AcademyStore, config: { key?: string; model?: string; geminiKey?: string; geminiModel?: string; hosted: boolean }) {
   const { account, headers } = identify(request, config.hosted);
   const reply = (value: unknown, status = 200) => Response.json(value, { status, headers: { ...headers, "Cache-Control": "no-store" } });
   if (request.method === "GET") return reply({ adventures: await db.list(account) });
@@ -49,7 +49,7 @@ export async function adventureApi(request: Request, db: AcademyStore, config: {
   if (request.method !== "POST") return reply({ error: "Method unavailable." },405);
   const setup = setupSchema.safeParse(data);
   if (!setup.success) return reply({ error: "Enter a topic, level, and duration." },400);
-  const adventure = await prepareAdventure(setup.data,config.key,config.model);
+  const adventure = await prepareAdventure(setup.data,config.geminiKey || config.key,config.geminiKey ? (config.geminiModel || "gemini-2.5-flash") : config.model,Boolean(config.geminiKey));
   const id = crypto.randomUUID();
   await db.add({ user:account,id,topic:adventure.topic,plan:adventure.plan });
   return reply({ ...adventure,id });

@@ -13,7 +13,7 @@ npm run dev
 
 Open http://localhost:3000. Use the Clockwork Tower preview to play immediately. Ready-to-play lessons also cover the water cycle, ancient Egypt, states of matter, and food chains. Choose 5, 10, or 15 minutes to play 2, 3, or 4 rooms. There is no time limit.
 
-For live custom topics, copy `.env.example` to `.env.local` and set `OPENAI_API_KEY`. The browser only requests a plan from the application. The server uses Structured Outputs and validates the decoded plan before returning it. Generation errors and invalid plans fall back to a supported sample. See [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=chat).
+For live custom topics, copy `.env.example` to `.env.local` and set `GEMINI_API_KEY` or `OPENAI_API_KEY`. Gemini is used when both are set. The browser only requests a plan from the application. The server uses structured output and validates the decoded plan before returning it. Generation errors and invalid plans fall back to a supported sample. See [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=chat).
 
 The local server assigns an HTTP-only guest session and stores the account, adventure plan, and progress in `data/academy.sqlite`. On Sites, the Worker uses platform sign-in and D1. The Journal shows progress for the current account. In a running adventure, Pause pauses the session and Resume continues from the current position.
 

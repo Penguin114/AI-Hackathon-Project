@@ -8,7 +8,7 @@ type Statement = {
   run(): Promise<unknown>;
   all<T>(): Promise<{ results: T[] }>;
 };
-type Env = { DB: { prepare(sql:string):Statement; batch(statements:Statement[]):Promise<unknown> }; OPENAI_API_KEY?: string; OPENAI_MODEL?: string };
+type Env = { DB: { prepare(sql:string):Statement; batch(statements:Statement[]):Promise<unknown> }; GEMINI_API_KEY?: string; GEMINI_MODEL?: string; OPENAI_API_KEY?: string; OPENAI_MODEL?: string };
 function store(db: Env["DB"]): AcademyStore {
   return {
     async add({ user,id,topic,plan }) {
@@ -29,7 +29,7 @@ function store(db: Env["DB"]): AcademyStore {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url);
-    if (pathname === "/api/adventure") return adventureApi(request, store(env.DB), {key:env.OPENAI_API_KEY,model:env.OPENAI_MODEL,hosted:true});
+    if (pathname === "/api/adventure") return adventureApi(request, store(env.DB), {geminiKey:env.GEMINI_API_KEY,geminiModel:env.GEMINI_MODEL,key:env.OPENAI_API_KEY,model:env.OPENAI_MODEL,hosted:true});
     if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method unavailable",{status:405});
     const asset = Object.hasOwn(assets,pathname) ? assets[pathname] : undefined;
     if (!asset) return new Response("Page not found",{status:404});
