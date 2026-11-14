@@ -67,6 +67,23 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number) {
     box(.505,.82,.13,x,.6,-4.68,trim);
     box(.615,.055,.21,x,1.01,-4.57,accent);
   }
+  // Recessed wall panels and brass trim give the room depth between the beams.
+  for (const side of [-1, 1]) {
+    for (const z of [-3, -1, 1, 3]) {
+      box(.045,2.35,1.55,side*4.79,2.45,z,trim);
+      box(.055,2.17,1.37,side*4.75,2.45,z,wall);
+      for (const y of [1.4,3.5]) box(.065,.045,1.3,side*4.71,y,z,accent);
+    }
+  }
+  // A layered ceiling medallion anchors the central pool of light.
+  const medallion = new T.Mesh(new T.CylinderGeometry(.72,.82,.08,24),material(trim));
+  medallion.position.set(.2,4.42,.5);scene.add(medallion);
+  const medallionInner = new T.Mesh(new T.CylinderGeometry(.48,.48,.09,24),material(accent));
+  medallionInner.position.set(.2,4.36,.5);scene.add(medallionInner);
+  for (const x of [-.68,1.18]) for (const z of [-1.65,2.02]) {
+    const ornament=box(.16,.012,.16,x,.051,z,accent);
+    ornament.rotation.y=Math.PI/4;
+  }
   const doorX=.46;
   box(2.19,3.45,.27,doorX,1.72,-4.61,trim);
   box(2.01,3.26,.15,doorX,1.64,-4.43,"#160f0c");
@@ -138,6 +155,14 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number) {
     globe.position.set(x,y,z);scene.add(globe);
     for(const yy of [-.16,.15]) box(.27,.08,.27,x,y+yy,z,trim);
     for(const xx of [-.11,.11]) box(.025,.28,.028,x+xx,y,z+.091,accent);
+  }
+  // Additional tabletop objects make the workbench feel inhabited.
+  const inkwell = new T.Mesh(new T.CylinderGeometry(.07,.09,.12,12),material("#263c39"));
+  inkwell.position.set(-3.13,1.08,-3.3);scene.add(inkwell);
+  const quill=box(.025,.42,.025,-3.11,1.29,-3.3,"#e5c69a");quill.rotation.z=-.35;
+  for (let i=0;i<3;i++) {
+    const book=box(.38,.065,.28,-1.78,1.03+i*.068,-3.15,shelfColors[i]);
+    book.rotation.y=.08-i*.08;
   }
   lamp(-3.85,2.76,-4.43);lamp(2.15,2.76,-4.43);lamp(-3.1,1.26,-3.63);
   const glow = new T.PointLight("#ffa960",17,10,2);glow.position.set(.2,3.85,.5);scene.add(glow);
