@@ -49,7 +49,7 @@ export async function adventureApi(request: Request, db: AcademyStore, config: {
   if (request.method !== "POST") return reply({ error: "Method unavailable." },405);
   const setup = setupSchema.safeParse(data);
   if (!setup.success) return reply({ error: "Enter a topic, level, and duration." },400);
-  const adventure = await prepareAdventure(setup.data,config.geminiKey || config.key,config.geminiKey ? (config.geminiModel || "gemini-2.5-flash") : config.model,Boolean(config.geminiKey));
+  const adventure = await prepareAdventure(setup.data,config.geminiKey || config.key,config.geminiKey ? (config.geminiModel || "gemini-flash-lite-latest") : config.model,Boolean(config.geminiKey));
   const id = crypto.randomUUID();
   await db.add({ user:account,id,topic:adventure.topic,plan:adventure.plan });
   return reply({ ...adventure,id });
