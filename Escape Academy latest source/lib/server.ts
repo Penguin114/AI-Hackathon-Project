@@ -27,7 +27,7 @@ const demoSchema = z.strictObject({ topic: z.string().min(2).max(100), plan: z.u
 export async function adventureApi(request: Request, db: AcademyStore, config: { key?: string; model?: string; geminiKey?: string; geminiModel?: string; hosted: boolean }) {
   const { account, headers } = identify(request, config.hosted);
   const reply = (value: unknown, status = 200) => Response.json(value, { status, headers: { ...headers, "Cache-Control": "no-store" } });
-  if (request.method === "GET") return reply({ adventures: await db.list(account) });
+  if (!["POST","PUT","PATCH"].includes(request.method)) return reply({ error: "Method unavailable." },405);
   const limit = request.method === "POST" ? maxPdfBase64 + maxNotesCharacters * 6 + 3000 : 30_000;
   if(Number(request.headers.get("content-length")) > limit) return reply({ error: "Request is too large." },413);
   const raw = await request.text();

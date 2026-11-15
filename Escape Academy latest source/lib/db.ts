@@ -1,12 +1,10 @@
 import type { Adventure } from "./plan";
 
 export type Progress = { room: number; solved: number; hints: number; seconds: number; complete: boolean };
-type Stored = { id: string; topic: string; title: string; progress: Progress };
 type Insert = { user: string; id: string; topic: string; plan: Adventure };
 export interface AcademyStore {
   add(record: Insert): Promise<void>;
   update(user: string, id: string, progress: Progress): Promise<void>;
-  list(user: string): Promise<Stored[]>;
 }
 export const initialProgress: Progress = { room: 0, solved: 0, hints: 0, seconds: 0, complete: false };
 export const tables = `CREATE TABLE IF NOT EXISTS accounts (
@@ -18,6 +16,3 @@ CREATE TABLE IF NOT EXISTS adventures (
   progress TEXT NOT NULL, updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS adventures_account ON adventures(account_id, updated DESC);`;
-
-export type StorageRow = { id: string; topic: string; title: string; progress: string };
-export const decodeRows = (rows: StorageRow[]): Stored[] => rows.map(row => ({ ...row, progress: JSON.parse(row.progress) }));

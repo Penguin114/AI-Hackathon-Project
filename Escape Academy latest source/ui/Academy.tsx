@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { ArrowDown, ArrowRight, BookOpen, Check, ChevronRight, Clock3, Compass, DoorOpen, FileUp, FlaskConical, Footprints, GraduationCap, KeyRound, Landmark, Leaf, Play, Sparkles, Telescope, X } from "lucide-react";
+import { ArrowDown, ArrowRight, Check, ChevronRight, Clock3, Compass, DoorOpen, FileUp, FlaskConical, Footprints, GraduationCap, KeyRound, Landmark, Leaf, Play, Sparkles, Telescope, X } from "lucide-react";
 import { levels, timePerRoom, validatePlan, type Adventure, type Setup } from "@/lib/plan";
 import { defaultSetup, presets, sampleFor } from "@/lib/samples";
 import { worlds } from "@/game/world-rules";
@@ -12,7 +12,6 @@ import { readNotesFile, type NotesFile } from "./notes-file";
 
 const PlayRoom = dynamic(()=>import("./PlayRoom"),{ssr:false,loading:()=> <div className="preparing"><Compass/><p>Opening the room…</p></div>});
 type Session = { plan: Adventure; id: string; topic: string; setup: Setup };
-type History = { id: string; title: string; topic: string; progress: Progress };
 const worldOptions = [
   { value:"space", label:"Space station" }, { value:"ocean", label:"Underwater laboratory" },
   { value:"city", label:"Future city" }, { value:"alien", label:"Alien research base" },
@@ -34,9 +33,6 @@ export default function Academy() {
   const [notice,setNotice]=useState("");
   const [result,setResult]=useState<Progress|null>(null);
   const [showHelp,setShowHelp]=useState(false);
-  const [showHistory,setShowHistory]=useState(false);
-  const [history,setHistory]=useState<History[]>([]);
-  const [historyStatus,setHistoryStatus]=useState("");
   const currentRequest=useRef<AbortController|null>(null);
   const topicInput=useRef<HTMLTextAreaElement>(null);
   const notesInput=useRef<HTMLTextAreaElement>(null);
@@ -45,7 +41,7 @@ export default function Academy() {
   useEffect(()=>()=>currentRequest.current?.abort(),[]);
   useEffect(()=>{if(stage!=="home")window.scrollTo(0,0);},[stage]);
   useEffect(()=>{
-    const close=(event:KeyboardEvent)=>{if(event.key==="Escape"){setShowHelp(false);setShowHistory(false);}};
+    const close=(event:KeyboardEvent)=>{if(event.key==="Escape")setShowHelp(false);};
     window.addEventListener("keydown",close);return()=>window.removeEventListener("keydown",close);
   },[]);
   const home=()=>{ currentRequest.current?.abort();started.current=false;setStage("home");setSession(null);setNotice("");setResult(null);window.scrollTo(0,0); };
@@ -63,15 +59,6 @@ export default function Academy() {
       input?.scrollIntoView({behavior:"smooth",block:"center"});
       input?.focus({preventScroll:true});
     });
-  };
-  const openHistory=async()=>{
-    setShowHistory(true);setHistoryStatus("Loading saved adventures…");
-    try {
-      const res=await fetch("/api/adventure",{cache:"no-store"});
-      if(!res.ok)throw new Error();
-      const data=await res.json();
-      setHistory(data.adventures);setHistoryStatus(data.adventures.length?"":"Your completed and in-progress adventures will appear here.");
-    } catch {setHistory([]);setHistoryStatus("The journal is temporarily unavailable.");}
   };
   const launch=(entry:Session)=>{setSession(entry);setNotice("");setStage("play");};
   async function attachNotes(file?:File) {
@@ -153,7 +140,7 @@ export default function Academy() {
   return <>
     <header className="topbar"><div className="shell top-inner">
       <button className="brand" onClick={home}><span className="brand-mark"><DoorOpen size={23}/></span><span>Escape<span className="brand-accent"> Academy</span></span></button>
-      <nav aria-label="Main navigation"><button className="nav-help" onClick={()=>setShowHelp(true)}><Compass size={16}/> How to play</button><button onClick={openHistory} aria-label="Journal"><BookOpen size={16}/> <span>Journal</span></button><button className="button nav-play" onClick={()=>focus()}>Play now <ArrowRight size={16}/></button></nav>
+      <nav aria-label="Main navigation"><button className="nav-help" onClick={()=>setShowHelp(true)}><Compass size={16}/> How to play</button><button className="button nav-play" onClick={()=>focus()}>Play now <ArrowRight size={16}/></button></nav>
     </div></header>
     {stage==="home" && <main className="simple-home">
       <div className="home-art" role="img" aria-label="A warmly lit clockwork tower room" />
@@ -206,8 +193,8 @@ export default function Academy() {
     {stage==="play" && session && <PlayRoom {...session} onLeave={home} onRestart={()=>void sampleOrRestart()} onComplete={progress=>{setResult(progress);setStage("done");}}/>}
     {stage==="done" && result && session && <main className="shell state-wrap"><div className="state-card recap"><div className="state-icon"><GraduationCap size={40}/></div><span className="eyebrow">ADVENTURE COMPLETE</span><h1>You escaped!</h1><p>{session.plan.title}</p><div className="recap-stats"><span><KeyRound size={17}/> {result.solved} puzzles solved</span><span><Sparkles size={17}/> {result.hints} hints</span><span><Clock3 size={17}/> {Math.floor(result.seconds/60)}m {result.seconds%60}s</span></div><div className="recap-lists"><div><h2>What you learned</h2><ul>{session.plan.objectives.map(x=><li key={x}><Check size={17}/>{x}</li>)}</ul></div><div><h2>What to review</h2><ul>{session.plan.review.map(x=><li key={x}><ChevronRight size={17}/>{x}</li>)}</ul></div><div><h2>Puzzles solved</h2><ul>{session.plan.rooms.map(x=><li key={x.name}><KeyRound size={16}/><span><strong>{x.puzzle.name}</strong><br/>{x.puzzle.explanation}</span></li>)}</ul></div></div><button className="button primary" onClick={()=>focus("")}>Play another room <ArrowRight size={18}/></button></div></main>}
     
-    {(showHelp||showHistory)&&<div className="modal-shade" onClick={()=>{setShowHelp(false);setShowHistory(false);}}><section className="modal global-modal" role="dialog" aria-modal="true" aria-label={showHelp?"How to play":"Adventure journal"} onClick={e=>e.stopPropagation()}><button autoFocus className="icon-button close" aria-label="Close" onClick={()=>{setShowHelp(false);setShowHistory(false);}}><X size={21}/></button>
-    {showHelp?<><span className="eyebrow"><Compass size={16}/> FIELD GUIDE</span><h2>How to play</h2><p>Drag to look around. Move with WASD, arrow keys or the on-screen arrows. Inspect glowing markers to find objects.</p><p>Explore the room for records and inspect equipment up close. Use your inventory to review what you discover.</p><p>The hint button reveals one tip at a time. Pause whenever you need a break.</p><button className="button primary" onClick={()=>setShowHelp(false)}><Check size={17}/> Got it</button></>:<><span className="eyebrow"><BookOpen size={16}/> YOUR PROGRESS</span><h2>Adventure journal</h2><p role="status">{historyStatus}</p><div className="journal-list">{history.map(x=><div key={x.id}><strong>{x.title}</strong><span>{x.topic} · {x.progress.complete?"Escaped":x.progress.solved+" solved"}</span></div>)}</div></>}
+    {showHelp&&<div className="modal-shade" onClick={()=>setShowHelp(false)}><section className="modal global-modal" role="dialog" aria-modal="true" aria-label="How to play" onClick={e=>e.stopPropagation()}><button autoFocus className="icon-button close" aria-label="Close" onClick={()=>setShowHelp(false)}><X size={21}/></button>
+    <span className="eyebrow"><Compass size={16}/> FIELD GUIDE</span><h2>How to play</h2><p>Drag to look around. Move with WASD, arrow keys or the on-screen arrows. Inspect glowing markers to find objects.</p><p>Explore the room for records and inspect equipment up close. Use your inventory to review what you discover.</p><p>The hint button reveals one tip at a time. Pause whenever you need a break.</p><button className="button primary" onClick={()=>setShowHelp(false)}><Check size={17}/> Got it</button>
     </section></div>}
   </>;
 

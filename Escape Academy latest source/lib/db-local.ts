@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
-import { tables, decodeRows, initialProgress, type AcademyStore, type StorageRow } from "./db";
+import { tables, initialProgress, type AcademyStore } from "./db";
 
 let database: DatabaseSync | undefined;
 export function localStore(): AcademyStore {
@@ -17,9 +17,6 @@ export function localStore(): AcademyStore {
     },
     async update(user,id,progress) {
       db.prepare("UPDATE adventures SET progress=?, updated=STRFTIME('%Y-%m-%d %H:%M:%f','now') WHERE id=? AND account_id=?").run(JSON.stringify(progress),id,user);
-    },
-    async list(user) {
-      return decodeRows(db.prepare("SELECT id,topic,title,progress FROM adventures WHERE account_id=? ORDER BY updated DESC, rowid DESC LIMIT 30").all(user) as StorageRow[]);
     },
   };
 }
