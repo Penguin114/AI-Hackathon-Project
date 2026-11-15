@@ -23,6 +23,7 @@ const initial = "Turn anything you want to learn into an escape-room adventure."
 
 export default function Academy() {
   const [setup,setSetup]=useState<Setup>({...defaultSetup,topic:""});
+  const [previousWorld,setPreviousWorld]=useState("auto");
   const [contentMode,setContentMode]=useState<"topic"|"notes">("topic");
   const [topicText,setTopicText]=useState("");
   const [notesText,setNotesText]=useState("");
@@ -42,6 +43,13 @@ export default function Academy() {
   const notesInput=useRef<HTMLTextAreaElement>(null);
   const fileInput=useRef<HTMLInputElement>(null);
   const started=useRef(false);
+  const selectedWorld=worldOptions.find(world=>world.value===setup.preferredTheme);
+  const previewWorld=selectedWorld?.value??"auto";
+  useEffect(()=>{
+    for(const name of ["auto",...worldOptions.map(world=>world.value)]){
+      const image=new Image();image.src=`/menu-worlds/${name}.webp`;
+    }
+  },[]);
   useEffect(()=>()=>currentRequest.current?.abort(),[]);
   useEffect(()=>{if(stage!=="home")window.scrollTo(0,0);},[stage]);
   useEffect(()=>{
@@ -156,7 +164,10 @@ export default function Academy() {
       <nav aria-label="Main navigation"><button className="nav-help" onClick={()=>setShowHelp(true)}><Compass size={16}/> How to play</button><button onClick={openHistory} aria-label="Journal"><BookOpen size={16}/> <span>Journal</span></button><button className="button nav-play" onClick={()=>focus()}>Play now <ArrowRight size={16}/></button></nav>
     </div></header>
     {stage==="home" && <main className="simple-home">
-      <div className="home-art" role="img" aria-label="A warmly lit clockwork tower room" />
+      <div className="home-art" role="img" aria-label={selectedWorld?selectedWorld.label+" first room":"A question mark for a world chosen for your topic"}>
+        <div className="home-art-layer" aria-hidden="true" style={{backgroundImage:`linear-gradient(180deg,#26170c12 45%,#1b120ac7), url('/menu-worlds/${previousWorld}.webp')`}} />
+        <div key={previewWorld} className="home-art-layer home-art-enter" aria-hidden="true" style={{backgroundImage:`linear-gradient(180deg,#26170c12 45%,#1b120ac7), url('/menu-worlds/${previewWorld}.webp')`}} />
+      </div>
       <div className="home-content"><div className="simple-intro"><h1>Learn your way <em>out.</em></h1><p>{initial}</p></div>
       <form className="simple-setup" onSubmit={e=>{e.preventDefault();void generate();}}>
         <div className="content-mode" role="group" aria-label="Choose what to study">
@@ -188,6 +199,7 @@ export default function Academy() {
         <label htmlFor="world">World</label>
         <select id="world" value={setup.preferredTheme??""} onChange={e=>{
           const value=e.target.value;
+          setPreviousWorld(previewWorld);
           setSetup({...setup,preferredTheme:worldOptions.find(option=>option.value===value)?.value});
           setNotice("");
         }}>
