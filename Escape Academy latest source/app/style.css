@@ -156,7 +156,7 @@ select,.answer-label input{display:block;width:100%;min-height:41px;padding:7px 
 .hint-button{min-height:36px;font-size:12px;padding:7px 10px;width:100%}
 .inventory{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
 .game-toast{position:absolute;top:72px;left:50%;transform:translateX(-50%);white-space:nowrap;padding:7px 11px;border:1px solid #648655;border-radius:8px;background:#263626;color:#d6f1cb;font-size:12px;display:flex;align-items:center;gap:5px;pointer-events:none}
-.modal-shade{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:13px;background:#100c09aa;backdrop-filter:blur(4px)}
+.modal-shade{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:13px;background:#100c09d9}
 .modal{position:relative;width:min(100%,560px);padding:25px;max-height:calc(100svh - 26px);overflow:auto;border-radius:16px;border:1px solid #805434;background:#251b15;box-shadow:0 28px 90px #080503b8}
 .modal .close{position:absolute;top:12px;right:12px}
 .modal>.eyebrow{max-width:calc(100% - 38px)}
