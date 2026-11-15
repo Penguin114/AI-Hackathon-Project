@@ -249,10 +249,12 @@ select,.answer-label input{display:block;width:100%;min-height:41px;padding:7px 
 @media(max-width:620px){.game-heading{flex-wrap:wrap}.timer{padding:6px 10px}}
 
 .world-hazard{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:var(--hazard-tint,0);background:radial-gradient(ellipse at center,transparent 20%,#4e3b88 100%)}
-.room-space .world-hazard{background:radial-gradient(ellipse at center,transparent 12%,#2e375d 85%)}
+.room-lighting{position:absolute;inset:0;z-index:1;pointer-events:none;background:#000;opacity:0}
+.room-heat{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,transparent 35%,#e00000 100%)}
+.room-space .room-heat{background:radial-gradient(ellipse at center,transparent 35%,#fff 100%)}
+.collapse-white{position:absolute;inset:0;z-index:10;pointer-events:none;background:#fff;opacity:0}
 .room-alien .world-hazard{background:radial-gradient(ellipse at center,transparent 14%,#b14c6d 92%)}
-.room-greenhouse .world-hazard{background:radial-gradient(ellipse at center,#adc4a2,#d1e6bd)}
-.room-lab .world-hazard,.room-tower .world-hazard{background:radial-gradient(ellipse at center,transparent 35%,#e98451)}
+.room-tower .world-hazard{background:radial-gradient(ellipse at center,transparent 35%,#e98451)}
 .room-ocean .world-hazard{opacity:1;background:linear-gradient(180deg,rgba(45,184,214,var(--hazard-tint,0)),rgba(7,64,116,var(--hazard-tint,0)));top:calc(100% - var(--waterline,0%))}
 .marker,.view-controls,.touch-controls{z-index:2}
 .game-layout{display:grid;grid-template-columns:minmax(0,1fr) 190px;grid-template-areas:"room conditions";gap:14px}

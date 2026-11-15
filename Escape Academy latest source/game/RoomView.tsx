@@ -4,14 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import * as T from "three";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CircleDot, Mouse, Move } from "lucide-react";
 import { buildRoom, type Target } from "./scenery";
+import { collapseProgress } from "./collapse";
 import type { Theme } from "@/lib/plan";
 import type { WorldDesign } from "@/lib/world-design";
 
-type Props = { theme: Theme; world?: WorldDesign; index: number; unlocked: boolean; cabinetOpen: boolean; paused: boolean; active: boolean; remaining: number; stabilized: boolean; onCaught:()=>void; labels: Record<Target,string>; onTarget: (target:Target)=>void; };
+type Props = { theme: Theme; world?: WorldDesign; index: number; unlocked: boolean; cabinetOpen: boolean; paused: boolean; active: boolean; remaining: number; stabilized: boolean; collapsing:boolean; onCollapseComplete:()=>void; onCaught:()=>void; labels: Record<Target,string>; onTarget: (target:Target)=>void; };
 
 export default function RoomView(props: Props) {
   const frame=useRef<HTMLDivElement>(null);
   const hazardLayer=useRef<HTMLDivElement>(null);
+  const lightingLayer=useRef<HTMLDivElement>(null);
+  const heatLayer=useRef<HTMLDivElement>(null);
+  const collapseLayer=useRef<HTMLDivElement>(null);
   const markers=useRef<Partial<Record<Target,HTMLButtonElement|null>>>({});
   const mobile=useRef(new Set<string>());
   const current=useRef(props);
@@ -19,6 +23,17 @@ export default function RoomView(props: Props) {
   const [fallback,setFallback]=useState(false);
   const { theme,world,index,labels,onTarget }=props;
   const [nearby, setNearby] = useState<Target | null>(null);
+  useEffect(()=>{
+    if(!fallback||!props.collapsing)return;
+    const started=performance.now();let frame=0;
+    const tick=(now:number)=>{
+      const t=Math.min(1,(now-started)/3000);
+      if(collapseLayer.current)collapseLayer.current.style.opacity=String(collapseProgress(t).white);
+      if(t>=1)current.current.onCollapseComplete();else frame=requestAnimationFrame(tick);
+    };
+    frame=requestAnimationFrame(tick);
+    return()=>cancelAnimationFrame(frame);
+  },[fallback,props.collapsing]);
   useEffect(()=>{
     const host=frame.current;
     if(!host) return;
@@ -86,6 +101,7 @@ export default function RoomView(props: Props) {
     const reduceMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let pace=2.65;
     let pursuedTime=0;
+    let collapseStart:number|null=null,collapsePitch=0,collapseHeight=0,collapseDone=false;
     const tick=(now:number)=>{
       const dt=Math.min((now-prev)/1000,.045);prev=now;
       const state=current.current;
@@ -93,8 +109,20 @@ export default function RoomView(props: Props) {
       const hazard=room.hazard(dt,pursuedTime,state.remaining,camera.position,state.active&&!state.paused,state.stabilized,reduceMotion);
       hazardLayer.current?.style.setProperty("--hazard-tint",String(hazard.tint));
       hazardLayer.current?.style.setProperty("--waterline",(hazard.waterline*100)+"%");
+      lightingLayer.current?.style.setProperty("opacity",String(1-hazard.brightness));
+      heatLayer.current?.style.setProperty("opacity",String(hazard.vignette));
+      room.setHeat(hazard.heat);
       if(hazard.caught)state.onCaught();
-      if(!state.paused&&!hazard.caught){
+      if(state.collapsing){
+        if(collapseStart===null){collapseStart=now;collapsePitch=pitch;collapseHeight=camera.position.y;keys.clear();mobile.current.clear();}
+        const t=Math.min(1,(now-collapseStart)/3000);
+        const progress=collapseProgress(t);
+        pitch=T.MathUtils.lerp(collapsePitch,Math.PI/2,progress.pitch);
+        camera.position.y=T.MathUtils.lerp(collapseHeight,.05,progress.height);
+        camera.rotation.set(pitch,yaw,0,"YXZ");
+        if(collapseLayer.current)collapseLayer.current.style.opacity=String(progress.white);
+        if(t>=1&&!collapseDone){collapseDone=true;state.onCollapseComplete();}
+      } else if(!state.paused&&!hazard.caught){
         const has=(...names:string[])=>names.some(n=>keys.has(n)||mobile.current.has(n));
         const forward=Number(has("w","arrowup"))-Number(has("s","arrowdown"));
         const strafe=Number(has("d","arrowright"))-Number(has("a","arrowleft"));
@@ -156,6 +184,9 @@ export default function RoomView(props: Props) {
 
   return <div className={"room-view room-"+theme} ref={frame}>
     <div className="world-hazard" ref={hazardLayer} aria-hidden="true"/>
+    <div className="room-lighting" ref={lightingLayer} aria-hidden="true"/>
+    <div className="room-heat" ref={heatLayer} aria-hidden="true"/>
+    <div className="collapse-white" ref={collapseLayer} aria-hidden="true"/>
     <div className="room-vignette" aria-hidden="true"/>
     {fallback ? <div className="webgl-fallback"><p>Explore the room’s stations.</p><div className="object-bar">{(Object.keys(labels) as Target[]).map(target=><button key={target} onClick={()=>onTarget(target)}>{labels[target]}</button>)}</div></div> : (Object.keys(labels) as Target[]).map(target=><button className={"marker marker-"+target} key={target} aria-label={labels[target]} ref={el=>{markers.current[target]=el;}} onClick={()=>onTarget(target)}><CircleDot size={15}/><span>{labels[target]}</span></button>)}
     <div className="view-controls"><span><Mouse size={14}/> Drag to look</span><span><Move size={14}/> WASD to move</span><span className="sprint-hint">Shift to sprint</span>{nearby&&<span>F to inspect</span>}</div>

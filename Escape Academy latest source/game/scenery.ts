@@ -61,6 +61,24 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number, world?:Wo
   const metal = material(structure);
   const fascia = material(wall);
   const floorMaterial = new T.MeshStandardMaterial({color:ground,roughness:.69,metalness:.08});
+  const heatUniform={value:0};
+  const heatedMaterials=new Set<T.Material>();
+  function heatSurface(surface:T.MeshStandardMaterial|T.MeshBasicMaterial){
+    if(heatedMaterials.has(surface))return;
+    heatedMaterials.add(surface);
+    surface.onBeforeCompile=shader=>{
+      shader.uniforms.labHeat=heatUniform;
+      shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying float labHeight;')
+        .replace('#include <begin_vertex>','#include <begin_vertex>\nlabHeight = (modelMatrix * vec4(transformed, 1.0)).y;');
+      shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform float labHeat;\nvarying float labHeight;')
+        .replace('#include <color_fragment>','#include <color_fragment>\nfloat heatBand = 1.0 - smoothstep(0.15, 2.0, labHeight);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9, 0.025, 0.015), labHeat * heatBand);')
+        .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance *= 1.0 - labHeat * heatBand;');
+    };
+    surface.customProgramCacheKey=()=>"laboratory-heat-v1";
+  }
+  if(theme==="lab")heatSurface(floorMaterial);
+  const wallSurface=theme==="lab"?fascia.clone():fascia;
+  if(theme==="lab")heatSurface(wallSurface);
   if (!gallery && ["city","ocean","lab","space"].includes(theme)) {
     const loader=new T.TextureLoader();
     const textures=[
@@ -219,7 +237,7 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number, world?:Wo
     bay.position.copy(start).lerp(end,.5);
     bay.rotation.y=-Math.atan2(end.z-start.z,end.x-start.x);
     scene.add(bay);
-    const wallPanel=box(width+.08,layout.height,.28,0,layout.height/2,0,fascia,bay);
+    const wallPanel=box(width+.08,layout.height,.28,0,layout.height/2,0,wallSurface,bay);
     blockers.push(wallPanel);
     const inset=mirror*.18;
     box(width+.10,.25,.40,0,.16,inset,metal,bay,.05);
@@ -300,7 +318,10 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number, world?:Wo
     colliders.push({x:group.position.x,z:group.position.z,radius:exhibit.radius});
     anchors[target]=new T.Vector3(group.position.x,exhibit.anchorHeight+group.position.y,group.position.z);
     if(central){
-      hoop(exhibit.radius,.021,0,.023,0,glow,group).rotation.x=Math.PI/2;
+      // The lab's floor ring must respond to heat instead of retaining its
+      // bright emissive color as the surrounding floor turns red.
+      const ringMaterial=theme==="lab"?new T.MeshBasicMaterial({color:glow.color,toneMapped:false}):glow;
+      hoop(exhibit.radius,.021,0,.023,0,ringMaterial,group).rotation.x=Math.PI/2;
       const fill=new T.PointLight("#fff3de",24,6,2);
       fill.position.set(1.1,2.35,2.18);
       group.add(fill);
@@ -680,6 +701,12 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number, world?:Wo
     hoop(.33,.027,0,-2.37,.12,lineMaterial,pendulum);
   }
   const hazard=buildHazard(scene,theme,shape,spawn,centerpiece.position,canWalk);
+  if(theme==="lab")scene.traverse(object=>{
+    if(!(object instanceof T.Mesh))return;
+    for(const surface of Array.isArray(object.material)?object.material:[object.material]){
+      if(surface instanceof T.MeshStandardMaterial || surface instanceof T.MeshBasicMaterial)heatSurface(surface);
+    }
+  });
   const movingEffects:T.Object3D[]=[];
   scene.traverse(object=>{
     if(typeof object.userData.update==="function")movingEffects.push(object);
@@ -695,7 +722,7 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number, world?:Wo
   };
 
   return {
-    groups,anchors,door,drawer:drawer!,dial:dial!,status,escapeLight,dust,blockers,canWalk,canInspect,hazard,animate:(seconds:number,stabilized:boolean)=>{
+    groups,anchors,door,drawer:drawer!,dial:dial!,status,escapeLight,dust,blockers,canWalk,canInspect,hazard,setHeat:(value:number)=>{heatUniform.value=value;},animate:(seconds:number,stabilized:boolean)=>{
       pendulum.rotation.z=T.MathUtils.lerp(pendulum.rotation.z,stabilized?0:Math.sin(seconds*1.6)*.62,.17);
       for(const effect of movingEffects)effect.userData.update(seconds);
     },

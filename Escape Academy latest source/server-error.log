@@ -1,0 +1,26 @@
+ ⚠ ./app/style.css.webpack[javascript/auto]!=!./node_modules/.pnpm/next@15.5.29_@types+node@22_c8665b6ed2e82eba8fab7a8297499aa6/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/.pnpm/next@15.5.29_@types+node@22_c8665b6ed2e82eba8fab7a8297499aa6/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./app/style.css
+Warning
+
+(60:97) autoprefixer: end value has mixed support, consider using flex-end instead
+
+Import trace for requested module:
+./app/style.css.webpack[javascript/auto]!=!./node_modules/.pnpm/next@15.5.29_@types+node@22_c8665b6ed2e82eba8fab7a8297499aa6/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/.pnpm/next@15.5.29_@types+node@22_c8665b6ed2e82eba8fab7a8297499aa6/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./app/style.css
+./app/style.css
+
+./app/style.css.webpack[javascript/auto]!=!./node_modules/.pnpm/next@15.5.29_@types+node@22_c8665b6ed2e82eba8fab7a8297499aa6/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/.pnpm/next@15.5.29_@types+node@22_c8665b6ed2e82eba8fab7a8297499aa6/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./app/style.css
+Warning
+
+(69:28) autoprefixer: end value has mixed support, consider using flex-end instead
+
+Import trace for requested module:
+./app/style.css.webpack[javascript/auto]!=!./node_modules/.pnpm/next@15.5.29_@types+node@22_c8665b6ed2e82eba8fab7a8297499aa6/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/.pnpm/next@15.5.29_@types+node@22_c8665b6ed2e82eba8fab7a8297499aa6/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./app/style.css
+./app/style.css
+
+./app/style.css.webpack[javascript/auto]!=!./node_modules/.pnpm/next@15.5.29_@types+node@22_c8665b6ed2e82eba8fab7a8297499aa6/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/.pnpm/next@15.5.29_@types+node@22_c8665b6ed2e82eba8fab7a8297499aa6/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./app/style.css
+Warning
+
+(111:30) autoprefixer: start value has mixed support, consider using flex-start instead
+
+Import trace for requested module:
+./app/style.css.webpack[javascript/auto]!=!./node_modules/.pnpm/next@15.5.29_@types+node@22_c8665b6ed2e82eba8fab7a8297499aa6/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/.pnpm/next@15.5.29_@types+node@22_c8665b6ed2e82eba8fab7a8297499aa6/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./app/style.css
+./app/style.css
