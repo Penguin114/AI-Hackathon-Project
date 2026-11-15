@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:3000. Use the Clockwork Tower preview to play immediately. Ready-to-play lessons also cover the water cycle, ancient Egypt, states of matter, and food chains. Choose 5, 10, or 15 minutes to play 2, 3, or 4 rooms. There is no time limit.
+Open http://localhost:3000. Use the Clockwork Tower preview to play immediately. Ready-to-play lessons also cover the water cycle, ancient Egypt, states of matter, and food chains. The countdown resets at each chamber. Easy gives you 10 minutes per room, Medium gives you 7, and Hard gives you 5. Hold Shift to sprint.
 
 For live custom topics, copy `.env.example` to `.env.local` and set `GEMINI_API_KEY` or `OPENAI_API_KEY`. Gemini is used when both are set. The browser only requests a plan from the application. The server uses structured output and validates the decoded plan before returning it. Generation errors and invalid plans fall back to a supported sample. See [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=chat).
 

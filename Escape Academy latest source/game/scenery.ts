@@ -1,7 +1,7 @@
 import * as T from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import type { Theme } from "@/lib/plan";
-import { layouts } from "./layouts";
+import { chamberLayout } from "./layouts";
 
 export type Target = "notes" | "log" | "cabinet" | "mechanism" | "door";
 const stationTargets = ["notes", "log", "cabinet", "mechanism"] as const;
@@ -10,7 +10,7 @@ const panorama: Partial<Record<Theme, string>> = {
 };
 
 export function buildRoom(scene: T.Scene, theme: Theme, index: number) {
-  const layout = layouts[theme];
+  const layout = chamberLayout(theme,index);
   const [wall, ground, structure, accent, light] = layout.colors;
   const mirror = index % 2 ? -1 : 1;
   const outline = layout.outline.map(([x,z])=>new T.Vector2(x*mirror,z));
@@ -61,15 +61,57 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number) {
   const metal = material(structure);
   const fascia = material(wall);
   const floorMaterial = new T.MeshStandardMaterial({color:ground,roughness:.69,metalness:.08});
-  if (theme === "city") {
-    const texture = new T.TextureLoader().load("/polyhaven/metal-plate-nor_gl.jpg");
-    texture.wrapS=texture.wrapT=T.RepeatWrapping;
-    texture.repeat.set(.45,.45);
-    floorMaterial.normalMap=texture;
-    floorMaterial.normalScale.set(.37,.37);
+  if (["city","ocean","lab","space"].includes(theme)) {
+    const loader=new T.TextureLoader();
+    const textures=[
+      loader.load("/polyhaven/metal-plate-Diffuse.jpg"),
+      loader.load("/polyhaven/metal-plate-nor_gl.jpg"),
+      loader.load("/polyhaven/metal-plate-Rough.jpg"),
+    ];
+    for(const texture of textures){
+      texture.wrapS=texture.wrapT=T.RepeatWrapping;
+      texture.repeat.set(.39,.39);
+      texture.anisotropy=4;
+    }
+    const [diffuse,normal,roughness]=textures;
+    diffuse.colorSpace=T.SRGBColorSpace;
+    floorMaterial.map=diffuse;
+    floorMaterial.normalMap=normal;
+    floorMaterial.roughnessMap=roughness;
+    floorMaterial.normalScale.set(.28,.28);
   }
   // A restrained deck pattern supplies scale cues while walking through large spaces.
   const deckGeometry = new T.ShapeGeometry(shape);
+  if(theme==="ocean"){
+    const rippleGeometry=new T.ShapeGeometry(shape);
+    const shimmer=new T.ShaderMaterial({
+      uniforms:{time:{value:0},strength:{value:.25}},
+      transparent:true,depthWrite:false,blending:T.AdditiveBlending,
+      vertexShader:`
+        varying vec2 deckPosition;
+        void main(){
+          deckPosition=position.xy;
+          gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+        }
+      `,
+      fragmentShader:`
+        varying vec2 deckPosition;
+        uniform float time;
+        uniform float strength;
+        void main(){
+          vec2 p=deckPosition*2.6;
+          float a=sin(p.x*1.8+p.y*.81+sin(p.y-time*.64)+time*.43);
+          float b=sin(p.y*1.9-p.x*.72+sin(p.x+time*.41));
+          float crest=pow(clamp(1.0-abs(a+b),0.0,1.0),8.0);
+          float fade=smoothstep(-6.0,4.0,deckPosition.x);
+          gl_FragColor=vec4(.16,.70,.86,crest*fade*strength);
+        }
+      `,
+    });
+    const caustics=mesh(rippleGeometry,shimmer,0,.009,0);
+    caustics.rotation.x=-Math.PI/2;
+    caustics.userData.update=(time:number)=>{shimmer.uniforms.time.value=time;};
+  }
   const coords = deckGeometry.getAttribute("position");
   const cornerColors = [];
   for(let i=0;i<coords.count;i++){
@@ -188,6 +230,9 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number) {
     }
   }
   const landmarkParts=buildLandmark(theme);
+  const scanRing=hoop(.95,.019,0,1.65,0,glow,centerpiece);
+  scanRing.rotation.x=Math.PI/2;
+  const movingEffects=scene.children.filter(object=>typeof object.userData.update==="function");
   blockers.push(...landmarkParts);
   colliders.push({x:centerpiece.position.x,z:landmarkZ,radius:1.48});
   if(index>0){
@@ -221,7 +266,12 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number) {
       alien:()=>new T.OctahedronGeometry(.96),
     };
     const parts:T.Mesh[]=[];
-    const body=mesh(geometry[kind](),material(kind==="greenhouse"?"#a5df64":accent),0,1.65,0,centerpiece);
+    const nextGeometry=[
+      ()=>new T.CylinderGeometry(.49,.86,1.86,10),
+      ()=>new T.TorusKnotGeometry(.53,.14,72,10,3,4),
+      ()=>new T.IcosahedronGeometry(.95,1),
+    ];
+    const body=mesh((nextGeometry[index-1]??geometry[kind])(),material(kind==="greenhouse"?"#a5df64":accent),0,1.65,0,centerpiece);
     body.rotation.set(.28,.65,.21);
     body.castShadow=true;
     parts.push(body);
@@ -282,6 +332,22 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number) {
     return parts;
   }
 
+  if(index===1 || index===3){
+    const overheadMachine=cylinder(1.25,.81,.49,landmarkX*mirror,layout.height-.27,landmarkZ,serviceMetal);
+    overheadMachine.castShadow=true;
+    for(const radius of [.71,1.03]){
+      hoop(radius,.034,landmarkX*mirror,layout.height-.56,landmarkZ,lineMaterial).rotation.x=Math.PI/2;
+    }
+    for(const x of [-.76,.76]){
+      const pipe=new T.CatmullRomCurve3([
+        new T.Vector3(landmarkX*mirror+x,layout.height-.15,landmarkZ),
+        new T.Vector3(landmarkX*mirror+x,layout.height-.42,landmarkZ+.72),
+        new T.Vector3(landmarkX*mirror+x,layout.height-.42,landmarkZ+2.3),
+      ]);
+      mesh(new T.TubeGeometry(pipe,18,.10,10,false),serviceMetal,0,0,0);
+    }
+  }
+
   // Arches and overhead light fixtures mark paths through the room.
   for(const edgeIndex of [0,Math.floor(edges.length/3),Math.floor(edges.length*2/3)]){
     const { start,end }=edges[edgeIndex];
@@ -297,12 +363,10 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number) {
     box(3.3,.10,.25,0,layout.height-.25,0,glow,beam,.04);
   }
 
-  const markerOrder=[0,2,3,1];
-  const spin = Math.floor(index/2);
   let drawer: T.Object3D | undefined;
   let dial: T.Object3D | undefined;
   for(const [i,target] of stationTargets.entries()){
-    const [x,z]=layout.stations[(i+markerOrder[spin%4])%4];
+    const [x,z]=layout.stations[i];
     const group=groups[target];
     group.position.set(x*mirror,0,z);
     group.rotation.y=Math.atan2(centerpiece.position.x-group.position.x,landmarkZ-z);
@@ -404,7 +468,11 @@ export function buildRoom(scene: T.Scene, theme: Theme, index: number) {
   }
 
   return {
-    groups,anchors,door,drawer:drawer!,dial:dial!,status,escapeLight,dust,blockers,canWalk,animate:(seconds:number)=>{landmarkParts[0].rotation.y=.65+seconds*.32;},
+    groups,anchors,door,drawer:drawer!,dial:dial!,status,escapeLight,dust,blockers,canWalk,animate:(seconds:number)=>{
+      landmarkParts[0].rotation.y=.65+seconds*.32;
+      scanRing.position.y=1.65+Math.sin(seconds*1.15)*.69;
+      for(const effect of movingEffects)effect.userData.update(seconds);
+    },
     spawn:new T.Vector3(layout.spawn[0]*mirror,1.68,layout.spawn[1]),
   };
 }

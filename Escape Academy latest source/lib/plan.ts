@@ -4,6 +4,7 @@ const line = (max: number) => z.string().min(1).max(max);
 const entry = z.strictObject({ name: line(50), text: line(500) });
 export const themes = ["tower", "lab", "archive", "greenhouse", "space", "ocean", "city", "alien"] as const;
 export const levels = ["Explorer", "Adventurer", "Expert"] as const;
+export const timePerRoom = { Explorer:10, Adventurer:7, Expert:5 } as const;
 export const setupSchema = z.strictObject({
   topic: z.string().trim().min(2).max(100),
   notes: z.string().trim().max(12000).optional(),

@@ -71,3 +71,28 @@ export const layouts: Record<Theme, Layout> = {
     fixtures: ["Survey stone","Echo scanner","Specimen cache","Resonance control"],
   },
 };
+
+// Later chambers have their own circulation and station locations within each world.
+const chambers = [
+  {
+    outline:[[-3,-7],[3,-7],[3,-4],[7,-4],[7,1],[4,1],[4,5],[-4,5],[-4,3],[-7,3],[-7,-2],[-3,-2]],
+    stations:[[-5.7,1.6],[5.9,-2.5],[-1.9,-5.7],[2.7,3.6]],
+    landmark:[.4,-1.9],door:[0,-6.72],spawn:[-.4,3.6],
+  },
+  {
+    outline:[[-2.7,-7],[2.7,-7],[3.5,-5],[3.5,-2],[6.6,-2],[7,1],[5,4.5],[.3,6.5],[-3,5],[-3,3],[-6,3],[-7,-.4],[-5.5,-3.7],[-2.7,-3.7]],
+    stations:[[5.55,-.7],[-5.7,.5],[-4.45,-2.8],[2.1,4.36]],
+    landmark:[.9,-1],door:[0,-6.72],spawn:[-1,3.9],
+  },
+  {
+    outline:[[-2.3,-8],[2.3,-8],[3.6,-6],[3.6,-4],[6.3,-3],[6.6,2],[4.5,5.8],[-4.5,5.8],[-6.6,2],[-6.3,-3],[-3.6,-4],[-3.6,-6]],
+    stations:[[4.9,2.5],[-4.9,2.5],[2.2,-4.8],[-3.1,-3.95]],
+    landmark:[0,-1.15],door:[0,-7.72],spawn:[.45,4.65],
+  },
+] as const;
+
+export function chamberLayout(theme:Theme, index:number):Layout {
+  const base=layouts[theme];
+  const chamber=chambers[index-1];
+  return chamber ? {...base,...chamber,height:base.height+[.3,-.24,.65][index-1]} : base;
+}

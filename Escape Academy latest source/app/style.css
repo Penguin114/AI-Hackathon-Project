@@ -228,3 +228,13 @@ select,.answer-label input{display:block;width:100%;min-height:41px;padding:7px 
 .station-serial{display:flex;gap:10px;align-items:center;font-size:.9rem}
 .station-serial strong{font:700 1rem/1 "DM Sans",sans-serif;padding:7px 10px;background:#263d4e;border:1px solid #639baa;border-radius:5px;color:#d6faff}
 .world-preview{display:flex;align-items:center;gap:8px;margin-top:10px}
+
+.timer{gap:6px;border:1px solid #67503d;border-radius:8px;padding:7px 9px;background:#221c18;color:#fff1d7;font-weight:700;white-space:nowrap}
+.timer-urgent{border-color:#ff8c79;background:#492624;color:#ffe4db}
+.difficulty-options label small{font-size:.7rem;opacity:.78}
+.chamber-arrival{position:absolute;inset:0;z-index:4;display:grid;place-items:center;background:#102234;color:#f1f8ff;pointer-events:none;animation:chamber-reveal .65s ease both}
+.chamber-arrival strong{font:400 clamp(2rem,6vw,4rem) var(--title);text-align:center;padding:16px}
+@keyframes chamber-reveal{0%,30%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion: reduce){.chamber-arrival{animation:none}}
+@media (pointer:coarse){.sprint-hint{display:none}}
+@media(max-width:620px){.game-heading{flex-wrap:wrap}.timer{padding:6px}}
