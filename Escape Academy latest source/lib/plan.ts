@@ -61,28 +61,53 @@ export function validatePlan(value: unknown, minutes?: number) {
     if (new Set(silhouettes).size !== chambers.length) throw new Error("Design a different 3D structure for each room");
   }
   if (new Set(parsed.rooms.map(r => r.puzzle.type)).size < 2) throw new Error("Puzzle types must vary");
-  for (const { puzzle: p } of parsed.rooms) {
+  for (const [roomIndex, { puzzle: p }] of parsed.rooms.entries()) {
+    const fail=(detail:string):never=>{throw new Error(`Room ${roomIndex+1} ${p.type} puzzle: ${detail}`);};
     const unique = (parts: string[]) => new Set(parts.map(normalize)).size === parts.length;
-    if (!unique(p.options) || !unique(p.labels) || p.solution.some(x => !normalize(x))) throw new Error("Invalid puzzle entries");
-    if (p.type === "order" || p.type === "match") {
-      if (p.options.length < 2 || p.options.length > 6 || p.solution.length !== p.options.length || !unique(p.solution) || p.solution.some(x => !p.options.includes(x))) throw new Error("Invalid puzzle permutation");
-      if (p.type === "match" ? p.labels.length !== p.options.length : p.labels.length !== 0) throw new Error("Invalid matching labels");
-      if (p.options.every((x, i) => x === p.solution[i])) throw new Error("Puzzle is already solved");
-    } else if (p.type === "spatial") {
-      if (p.labels.length || p.options.length !== 4 || p.solution.length !== 1 || !p.options.includes(p.solution[0])) throw new Error("Invalid grid");
-    } else if (p.type === "switches") {
-      if (p.labels.length || p.options.length < 4 || p.options.length > 6 || p.solution.length < 2
-        || p.solution.length >= p.options.length || !unique(p.solution) || p.solution.some(x => !p.options.includes(x))) {
-        throw new Error("Switch puzzles need 4–6 options and at least two correct choices with a distractor");
+    for (const [field,entries] of [["options",p.options],["labels",p.labels]] as const) {
+      const seen=new Map<string,number>();
+      for (const [index,value] of entries.entries()) {
+        const key=normalize(value);
+        const first=seen.get(key);
+        if (first!==undefined) throw new Error(`Room ${roomIndex+1} ${p.type} puzzle has duplicate ${field} at positions ${first+1} and ${index+1}; make each ${field} entry distinct even ignoring case, spacing and trailing punctuation`);
+        seen.set(key,index);
       }
+    }
+    const blankAnswer=p.solution.findIndex(answer=>!normalize(answer));
+    if (blankAnswer!==-1) throw new Error(`Room ${roomIndex+1} ${p.type} puzzle has a blank solution at position ${blankAnswer+1}; provide a non-empty answer`);
+    if (p.type === "order" || p.type === "match") {
+      if (p.options.length < 2 || p.options.length > 6) fail("provide 2–6 options");
+      if (p.solution.length !== p.options.length) fail("solution must contain exactly one answer for each option");
+      if (!unique(p.solution)) fail("solution must contain each option only once");
+      if (p.solution.some(x => !p.options.includes(x))) fail("every solution entry must exactly match an option");
+      if (p.type === "match" ? p.labels.length !== p.options.length : p.labels.length !== 0) fail(p.type === "match"?"provide one distinct label for each option":"leave labels empty for an order puzzle");
+      if (p.options.every((x, i) => x === p.solution[i])) fail("shuffle the options so they are not already in solution order");
+    } else if (p.type === "spatial") {
+      if (p.labels.length) fail("leave labels empty");
+      if (p.options.length !== 4) fail("provide exactly four options");
+      if (p.solution.length !== 1) fail("provide exactly one solution entry");
+      if (!p.options.includes(p.solution[0])) fail("the solution must exactly match one of the options");
+    } else if (p.type === "switches") {
+      if (p.labels.length) fail("leave labels empty");
+      if (p.options.length < 4 || p.options.length > 6) fail("provide 4–6 options");
+      if (p.solution.length < 2 || p.solution.length >= p.options.length) fail("select at least two correct options and leave at least one distractor");
+      if (!unique(p.solution)) fail("do not repeat a solution entry");
+      if (p.solution.some(x => !p.options.includes(x))) fail("every solution entry must exactly match an option");
     } else if (p.type === "route") {
       const path=p.solution.map(tile=>p.options.indexOf(tile));
-      if(p.labels.length || p.options.length!==9 || path.length<5 || !unique(p.solution) || path[0]!==0
-        || path.at(-1)!==8 || path.slice(1).some((tile,index)=>!adjacentTiles(path[index],tile))) {
-        throw new Error("Route puzzles need a continuous 3×3 path from the top left to the bottom right, with no repeated tiles");
-      }
+      if(p.labels.length) fail("leave labels empty");
+      if(p.options.length!==9) fail("provide exactly nine distinct options in row-major order for a 3×3 grid");
+      if(path.length<5) fail("the path must contain at least five tiles");
+      if(!unique(p.solution)) fail("the path must not repeat tiles");
+      if(path[0]!==0) fail("the path must start at the first option, the top-left tile");
+      if(path.at(-1)!==8) fail("the path must end at the ninth option, the bottom-right tile");
+      if(path.slice(1).some((tile,index)=>!adjacentTiles(path[index],tile))) fail("each path entry must exactly match an option and consecutive tiles must be horizontally or vertically adjacent");
     } else {
-      if (p.options.length || p.labels.length || p.solution.length > 6 || (p.type === "code" && (p.solution.length !== 1 || !/^\d{2,8}$/.test(p.solution[0])))) throw new Error("Invalid entry puzzle");
+      if (p.options.length) fail("leave options empty");
+      if (p.labels.length) fail("leave labels empty");
+      if (p.solution.length > 6) fail("provide at most six solution entries");
+      if (p.type === "code" && p.solution.length !== 1) fail("provide exactly one solution entry");
+      if (p.type === "code" && !/^\d{2,8}$/.test(p.solution[0])) fail("the solution must be one string of 2–8 digits; for a one-digit answer, specify a leading zero in the prompt and code");
     }
   }
   return parsed;
