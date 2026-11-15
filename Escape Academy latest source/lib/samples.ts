@@ -92,6 +92,12 @@ function buildLesson(lesson: Lesson, setup: Setup): Adventure {
       name: p.name, objective: i === roomCount(setup.minutes) - 1 ? "Restore the exit mechanism and escape." : "Find the notes and repair the room’s mechanism.",
       clues: [{ name: "Field notes", text: p.note }, { name: "Mechanic’s log", text:p.otherClue??"The "+items[i].toLowerCase()+" fits the "+p.puzzle.name.toLowerCase()+"." }],
       item: { name: items[i], text: "A missing part for the " + p.puzzle.name.toLowerCase() + "." }, use: "Fit the " + items[i].toLowerCase() + " into the mechanism.",
+      stationQuestions: [
+        {prompt:`Which entry matches: ${lesson.facts[0]}?`,options:[b,a,c],answer:a,explanation:`${a}: ${lesson.facts[0]}.`},
+        {prompt:`Which entry matches: ${lesson.facts[1]}?`,options:[c,b,a],answer:b,explanation:`${b}: ${lesson.facts[1]}.`},
+        {prompt:`Which entry matches: ${lesson.facts[2]}?`,options:[a,c,b],answer:c,explanation:`${c}: ${lesson.facts[2]}.`},
+        {prompt:`${lesson.practice[0]} Which entry comes first?`,options:[c,a,b],answer:a,explanation:`${a} comes first.`},
+      ],
       puzzle: p.puzzle,
     })),
   }, setup.minutes);

@@ -4,6 +4,8 @@ import { worldDesignSchema, worldPromptSchema } from "./world-design";
 
 const line = (max: number) => z.string().min(1).max(max);
 const entry = z.strictObject({ name: line(50), text: line(500) });
+export const stationQuestion = z.strictObject({ prompt: line(300), options: z.array(line(120)).length(3), answer: line(120), explanation: line(300) });
+export const stationQuestions = z.array(stationQuestion).length(4);
 export const themes = ["tower", "lab", "archive", "greenhouse", "space", "ocean", "city", "alien"] as const;
 export const levels = ["Explorer", "Adventurer", "Expert"] as const;
 export const timePerRoom = { Explorer:10, Adventurer:7, Expert:5 } as const;
@@ -28,7 +30,7 @@ const puzzle = z.strictObject({
 });
 const room = z.strictObject({
   name: line(55), objective: line(125), clues: z.array(entry).length(2),
-  item: entry, use: line(160), puzzle,
+  item: entry, use: line(160), puzzle, stationQuestions: stationQuestions.optional(),
 });
 export const adventureSchema = z.strictObject({
   title: line(65), setting: line(70), premise: line(430), theme: z.enum(themes),
@@ -61,6 +63,13 @@ export function validatePlan(value: unknown, minutes?: number) {
     if (new Set(silhouettes).size !== chambers.length) throw new Error("Design a different 3D structure for each room");
   }
   if (new Set(parsed.rooms.map(r => r.puzzle.type)).size < 2) throw new Error("Puzzle types must vary");
+  for (const [roomIndex, room] of parsed.rooms.entries()) if (room.stationQuestions) {
+    for (const [index, question] of room.stationQuestions.entries()) {
+      const station=["notes","log","artifact","equipment"][index];
+      const options = question.options.map(normalize);
+      if (new Set(options).size !== options.length || !options.includes(normalize(question.answer))) throw new Error(`Room ${roomIndex+1} ${station} question must have three distinct options and an answer matching one option`);
+    }
+  }
   for (const [roomIndex, { puzzle: p }] of parsed.rooms.entries()) {
     const fail=(detail:string):never=>{throw new Error(`Room ${roomIndex+1} ${p.type} puzzle: ${detail}`);};
     const unique = (parts: string[]) => new Set(parts.map(normalize)).size === parts.length;

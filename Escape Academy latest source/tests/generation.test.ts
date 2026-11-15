@@ -19,6 +19,30 @@ function geminiReply(plan:Adventure){
 }
 function puzzleTypes(schema:any):string[]{return schema.properties.rooms.items.properties.puzzle.properties.type.enum;}
 
+test("sample adventures provide valid questions at every prerequisite station",()=>{
+  for(const topic of ["Fractions","The water cycle","Ancient Egypt","Chemistry","Ecology","Ocean zones"]){
+    for(const minutes of [5,10,15] as const){
+      const plan=sampleFor({...defaultSetup,topic,minutes}).plan;
+      for(const room of plan.rooms){
+        assert.ok(room.stationQuestions);
+        for(const question of Object.values(room.stationQuestions)){
+          assert.equal(new Set(question.options).size,3);
+          assert.ok(question.options.includes(question.answer));
+        }
+      }
+    }
+  }
+});
+
+test("station questions must have distinct choices and a matching answer",()=>{
+  const invalid=sample();
+  invalid.rooms[0].stationQuestions![0].answer="not an option";
+  assert.throws(()=>validatePlan(invalid),/notes question/);
+  const duplicate=sample();
+  duplicate.rooms[0].stationQuestions![3].options[1]=duplicate.rooms[0].stationQuestions![3].options[0];
+  assert.throws(()=>validatePlan(duplicate),/equipment question/);
+});
+
 test("valid routes remain supported in authored plans and first Gemini requests",async t=>{
   const plan=sample();
   assert.ok(plan.rooms.some(room=>room.puzzle.type==="route"));
