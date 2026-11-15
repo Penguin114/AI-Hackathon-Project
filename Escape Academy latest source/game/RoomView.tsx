@@ -14,11 +14,13 @@ export default function RoomView(props: Props) {
   const hazardLayer=useRef<HTMLDivElement>(null);
   const markers=useRef<Partial<Record<Target,HTMLButtonElement|null>>>({});
   const mobile=useRef(new Set<string>());
+  const wakeRenderer=useRef<(()=>void)|null>(null);
   const current=useRef(props);
   current.current=props;
   const [fallback,setFallback]=useState(false);
   const { theme,world,index,labels,onTarget }=props;
   const [nearby, setNearby] = useState<Target | null>(null);
+  useEffect(()=>{wakeRenderer.current?.();},[props.paused,props.unlocked,props.cabinetOpen,props.stabilized]);
   useEffect(()=>{
     const host=frame.current;
     if(!host) return;
@@ -38,8 +40,8 @@ export default function RoomView(props: Props) {
     let yaw=room.heading,pitch=room.pitch, raf=0,prev=performance.now();
     let pointer:{ id:number; x:number; y:number; dragged:boolean } | null=null;
     const keys=new Set<string>();
-    const size=()=>{const w=host.clientWidth,h=host.clientHeight; if(!w||!h)return; camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);};
-    const resize=new ResizeObserver(size);resize.observe(host);size();
+    const size=()=>{const w=host.clientWidth,h=host.clientHeight; if(!w||!h)return; camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);wake();};
+    const resize=new ResizeObserver(size);
     const down=(e:KeyboardEvent)=>{
       if(current.current.paused || (e.target instanceof HTMLElement && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName))) return;
       const key=e.key.toLowerCase();
@@ -87,8 +89,17 @@ export default function RoomView(props: Props) {
     let pace=2.65;
     let pursuedTime=0;
     const tick=(now:number)=>{
+      raf=0;
       const dt=Math.min((now-prev)/1000,.045);prev=now;
       const state=current.current;
+      if(document.hidden)return;
+      // Keep the existing scene in memory, but stop simulation, raycasts and
+      // continuous GPU rendering while any panel covers the room.
+      if(state.paused){
+        keys.clear();mobile.current.clear();pointer=null;
+        renderer.render(scene,camera);
+        return;
+      }
       if(state.active&&!state.paused)pursuedTime+=dt;
       const hazard=room.hazard(dt,pursuedTime,state.remaining,camera.position,state.active&&!state.paused,state.stabilized,reduceMotion);
       hazardLayer.current?.style.setProperty("--hazard-tint",String(hazard.tint));
@@ -142,9 +153,21 @@ export default function RoomView(props: Props) {
       if(closest!==focusedTarget){focusedTarget=closest;setNearby(closest);}
       raf=requestAnimationFrame(tick);
     };
-    raf=requestAnimationFrame(tick);
+    function wake(){
+      if(raf || document.hidden)return;
+      prev=performance.now();
+      raf=requestAnimationFrame(tick);
+    }
+    const visibility=()=>{
+      if(document.hidden){cancelAnimationFrame(raf);raf=0;keys.clear();mobile.current.clear();pointer=null;}
+      else wake();
+    };
+    wakeRenderer.current=wake;
+    document.addEventListener("visibilitychange",visibility);
+    resize.observe(host);size();
     return ()=>{
-      cancelAnimationFrame(raf);resize.disconnect();
+      wakeRenderer.current=null;cancelAnimationFrame(raf);resize.disconnect();
+      document.removeEventListener("visibilitychange",visibility);
       window.removeEventListener("keydown",down);window.removeEventListener("keyup",up);window.removeEventListener("blur",blur);
       canvas.removeEventListener("pointerdown",start);canvas.removeEventListener("pointermove",look);canvas.removeEventListener("pointerup",release);canvas.removeEventListener("pointercancel",release);
       const materials=new Set<T.Material>();
