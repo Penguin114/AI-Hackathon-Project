@@ -1,4 +1,5 @@
 import type { Theme } from "@/lib/plan";
+import type { ChamberDesign } from "@/lib/world-design";
 
 type Point = readonly [x: number, z: number];
 type Layout = {
@@ -91,8 +92,48 @@ const chambers = [
   },
 ] as const;
 
-export function chamberLayout(theme:Theme, index:number):Layout {
+const round: Pick<Layout,"outline"|"stations"|"landmark"|"door"|"spawn"> = {
+  outline:[[-2.5,-7],[2.5,-7],[5.5,-5.3],[7,-2.4],[7,2.4],[4.6,5.7],[1.9,7],[-1.9,7],[-4.6,5.7],[-7,2.4],[-7,-2.4],[-5.5,-5.3]],
+  stations:[[-5.5,1.5],[5.4,-1.4],[-3.8,-4.6],[4.4,3.8]],
+  landmark:[0,-.8],door:[0,-6.72],spawn:[0,5.35],
+};
+const diamond: typeof round = {
+  outline:[[-1.6,-7],[1.6,-7],[7,0],[1.6,7],[-1.6,7],[-7,0]],
+  stations:[[-4.5,-.45],[4.6,.05],[-2.6,-3.6],[2.3,4]],
+  landmark:[0,-1.65],door:[0,-6.72],spawn:[0,5.35],
+};
+const cross: typeof round = {
+  outline:[[-2.5,-7.1],[2.5,-7.1],[2.5,-2.5],[7,-2.5],[7,2.5],[2.5,2.5],[2.5,6],[-2.5,6],[-2.5,2.5],[-7,2.5],[-7,-2.5],[-2.5,-2.5]],
+  stations:[[-5.6,1.1],[5.65,-1.08],[1.55,-5.1],[-1.28,3.9]],
+  landmark:[.2,-.45],door:[0,-6.83],spawn:[.62,4.55],
+};
+const galleries: typeof round = {
+  outline:[[-2.2,-7],[2.4,-7],[2.4,-4],[6.6,-4],[6.6,-.3],[3,-.3],[3,3.5],[-.2,3.5],[-.2,6.6],[-5,6.6],[-5,1.8],[-3.6,1.8],[-3.6,-2.9],[-2.2,-2.9]],
+  stations:[[-3.55,5.1],[5.25,-2.45],[1.35,-5.75],[1.72,1.75]],
+  landmark:[-.2,-.86],door:[0,-6.72],spawn:[-1.45,4.4],
+};
+
+const worldChambers = {
+  tower:[diamond,round,chambers[0]],
+  greenhouse:[round,cross,chambers[1]],
+  archive:[galleries,diamond,chambers[0]],
+  lab:[chambers[0],round,cross],
+  space:[cross,chambers[2],diamond],
+  ocean:[chambers[0],diamond,round],
+  city:[chambers[1],galleries,cross],
+  alien:[diamond,cross,chambers[2]],
+} satisfies Record<Theme,readonly (typeof round)[]>;
+
+const customLayouts = {
+  round, diamond, cross, galleries, junction:chambers[0], annex:chambers[1], corridor:chambers[2],
+} satisfies Record<ChamberDesign["layout"], typeof round>;
+
+export function chamberLayout(theme:Theme, index:number, design?:ChamberDesign):Layout {
   const base=layouts[theme];
-  const chamber=chambers[index-1];
+  if(design){
+    const height=design.style==="gallery"?6.2:design.style==="airlock"?4.9:5.4;
+    return {...base,...customLayouts[design.layout],height};
+  }
+  const chamber=worldChambers[theme][index-1];
   return chamber ? {...base,...chamber,height:base.height+[.3,-.24,.65][index-1]} : base;
 }

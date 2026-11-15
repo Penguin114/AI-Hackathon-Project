@@ -23,7 +23,7 @@ const oceanLesson: Lesson = {
   steps: ["Sunlight zone", "Twilight zone", "Midnight zone"],
   facts: ["Enough light for photosynthesis", "Dim sunlight, too weak for photosynthesis", "No sunlight reaches this layer"],
   summary: ["Sunlight fades as ocean depth increases.", "Bioluminescence is light produced by living organisms.", "Oxygen, light and pressure vary across the water column."],
-  practice: ["Arrange the survey zones in the order encountered on a descent.", "The last surface reading had enough sunlight for photosynthesis. The next camera recorded a dim blue glow. At the deepest stop, all the light came from the camera lamp.", "A descent passes through the sunlight, twilight and midnight zones in that order."],
+  practice: ["Arrange the survey zones in the order encountered on a descent.", "Sunlight fades with depth. The twilight zone is dim, and the midnight zone gets no sunlight.", "A descent passes through the sunlight, twilight and midnight zones in that order."],
   test: ["An unpowered camera records a flash from a moving organism below the reach of sunlight. What produced the flash?", "The camera lamp was off, and there is no sunlight at the recorded depth. Some marine organisms generate their own light.", "Bioluminescence"],
   code: ["Three tagged sensors carried these badges: midnight 7, sunlight 4, twilight 9. The recorder stores the tags in descent order.", "497"],
   grid: ["The habitat map reads northwest: bright light, northeast: trace daylight, southwest: no daylight, southeast: surface reflections. Which quadrant is the midnight zone?", "SW", "The midnight zone lies below the reach of sunlight."],
@@ -32,7 +32,7 @@ const oceanLesson: Lesson = {
 function buildLesson(lesson: Lesson, setup: Setup): Adventure {
   const [a,b,c] = lesson.steps;
   const items = lesson.theme === "lab" ? ["Brass valve", "Calibration pin", "Sample cartridge", "Relay key"] : lesson.theme === "archive" ? ["Bronze stylus", "Stone seal", "Clay tablet", "Gate token"] : ["Brass gear", "Copper coupler", "Dial spindle", "Exit key"];
-  const puzzles: Array<{name: string; note: string; puzzle: Room["puzzle"]}> = [
+  const puzzles: Array<{name: string; note: string; otherClue?: string; puzzle: Room["puzzle"]}> = [
     { name: "The Workshop", note: lesson.practice[1], puzzle: { type: "order", name: "Sequence mechanism", prompt: lesson.practice[0], options: setup.level === "Expert" ? [c,b,a] : [b,c,a], labels: [], solution: [a,b,c], explanation: lesson.practice[2], hints: ["Read the field notes beside the mechanism.", "Find the first entry before placing the others.", "Begin with " + a + ", then place " + b + " before " + c + "."] }},
     { name: "The Study", note: lesson.steps.map((step,i) => step + " — " + lesson.facts[i] + ".").join("\n"), puzzle: { type: "match", name: "Mapping console", prompt: "Match each description to the entry it belongs to.", options: [c,a,b], labels: lesson.facts, solution: [a,b,c], explanation: lesson.summary.join(" "), hints: ["Read the field notes in this room.", "Start with the first description and work down.", "From top to bottom, select " + [a,b,c].join(", ") + "."] }},
     { name: "The Instrument Room", note: lesson.code[0], puzzle: { type: "code", name: "Instrument lock", prompt: "Enter the three-digit combination from the instrument readings.", options: [], labels: [], solution: [lesson.code[1]], explanation: "The three digits follow the order asked for in the instrument notes. " + lesson.practice[2], hints: ["Inspect the field notes for the three readings.", "Enter the digits in the order mentioned in the notes.", "The combination is " + lesson.code[1] + "."] }},
@@ -40,13 +40,57 @@ function buildLesson(lesson: Lesson, setup: Setup): Adventure {
       ? { name: "The Exit Chamber", note: lesson.grid[0], puzzle: { type: "spatial", name: "Exit plate", prompt: "Choose the plate in the location identified by the sketch in your notes.", options: ["NW","NE","SW","SE"], labels: [], solution: [lesson.grid[1]], explanation: lesson.grid[2], hints: ["Read the sketch in the field notes.", "Find the description that satisfies the sketch’s instruction.", "Engage the " + lesson.grid[1] + " plate."] }}
       : { name: "The Exit Chamber", note: lesson.test[1], puzzle: { type: "text", name: "Exit mechanism", prompt: lesson.test[0], options: [], labels: [], solution: [lesson.test[2]], explanation: lesson.test[1] + " The answer is " + lesson.test[2] + ".", hints: ["Read the field notes and think back to the first mechanism.", "Use the last sentence of the notes to work out the next step.", "Enter " + lesson.test[2] + "."] }},
   ];
-  const middle = setup.minutes === 15 ? [puzzles[1],puzzles[2]] : setup.minutes === 10 ? [setup.level === "Explorer" ? puzzles[2] : puzzles[1]] : [];
+  if(lesson.theme==="ocean"){
+    puzzles[0].otherClue="The sunlight zone is closest to the surface and has enough light for photosynthesis.";
+    puzzles[1]={
+      name:"Camera junction",
+      note:"The twilight zone gets faint sunlight. The midnight zone gets none.",
+      otherClue:"The light needed for photosynthesis reaches the sunlight zone. Only cameras can record a flash.",
+      puzzle:{
+        type:"switches",name:"Camera power panel",
+        prompt:"Power every camera below the reach of enough sunlight for photosynthesis.",
+        options:["Sunlight camera","Twilight camera","Midnight camera","Deep pressure gauge","Surface thermometer"],
+        labels:[],solution:["Twilight camera","Midnight camera"],
+        explanation:"The twilight and midnight zones get too little sunlight for photosynthesis. The gauges and thermometer cannot record a flash.",
+        hints:["Read the notes about light in the water.","Look for two cameras below the sunlight zone.","Enable the twilight and midnight cameras."],
+      },
+    };
+    puzzles[3]={
+      name:"Ascent channel",
+      note:"From the surface down, the water goes from bright to dim to dark.",
+      otherClue:"The daylight cameras report light levels. Pumps, gauges, and valves are used for repairs.",
+      puzzle:{
+        type:"route",name:"Survey router",
+        prompt:"Connect the dock to the ascent lock through three daylight cameras in descent order. Skip maintenance equipment.",
+        options:["Dock","Bright camera","Dim camera","Pump","Pressure gauge","Dark camera","Spare valve","Battery rack","Ascent lock"],
+        labels:[],solution:["Dock","Bright camera","Dim camera","Dark camera","Ascent lock"],
+        explanation:"Sunlight gets weaker as water gets deeper, so the survey passes from bright to dim to dark.",
+        hints:["Follow the notes on daylight during descent.","Start by going right from the dock.","From the dock, go right, right, down, down."],
+      },
+    };
+  } else if(lesson.theme==="tower"){
+    puzzles[3]={
+      name:"Counterweight route",
+      note:"Equivalent fractions represent the same part of a whole.",
+      otherClue:"Divide a fraction’s top and bottom numbers by the same number to simplify it.",
+      puzzle:{
+        type:"route",name:"Weight transfer grid",
+        prompt:"Connect the drive to the exit. Use only plates that equal one half.",
+        options:["Drive","2/4","1/6","1/4","3/6","4/8","7/8","2/3","Exit coupling"],
+        labels:[],solution:["Drive","2/4","3/6","4/8","Exit coupling"],
+        explanation:"The three plates simplify to one half. They form a continuous route from the drive to the exit.",
+        hints:["Look for numerators that are half their denominators.","The plate marked 2/4 is next to the drive.","From the drive, choose 2/4, 3/6, 4/8, then Exit coupling."],
+      },
+    };
+  }
+  const middle = setup.minutes === 15 ? [puzzles[1],puzzles[2]]
+    : setup.minutes === 10 ? [setup.level === "Explorer" && lesson.theme !== "ocean" ? puzzles[2] : puzzles[1]] : [];
   return validatePlan({
     title: lesson.title, setting: lesson.setting, premise: lesson.premise, theme: lesson.theme,
     objectives: lesson.summary, review: [lesson.practice[2], lesson.summary[1]],
     rooms: [puzzles[0], ...middle, puzzles[3]].map((p,i) => ({
       name: p.name, objective: i === roomCount(setup.minutes) - 1 ? "Restore the exit mechanism and escape." : "Find the notes and repair the room’s mechanism.",
-      clues: [{ name: "Field notes", text: p.note }, { name: "Mechanic’s log", text: lesson.theme==="ocean" ? "The recorder stores observations against a numbered station. The observations are still readable after the power fault." : "An inventory entry lists a " + items[i].toLowerCase() + " beside the " + p.puzzle.name.toLowerCase() + "." }],
+      clues: [{ name: "Field notes", text: p.note }, { name: "Mechanic’s log", text:p.otherClue??"The "+items[i].toLowerCase()+" fits the "+p.puzzle.name.toLowerCase()+"." }],
       item: { name: items[i], text: "A missing part for the " + p.puzzle.name.toLowerCase() + "." }, use: "Fit the " + items[i].toLowerCase() + " into the mechanism.",
       puzzle: p.puzzle,
     })),

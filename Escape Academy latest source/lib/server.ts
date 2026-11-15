@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { setupSchema, validatePlan } from "./plan";
 import { prepareAdventure } from "./generate";
+import { maxNotesCharacters, maxPdfBase64 } from "./notes";
 import type { AcademyStore } from "./db";
 
 const cookie = "academy_guest";
@@ -27,8 +28,10 @@ export async function adventureApi(request: Request, db: AcademyStore, config: {
   const { account, headers } = identify(request, config.hosted);
   const reply = (value: unknown, status = 200) => Response.json(value, { status, headers: { ...headers, "Cache-Control": "no-store" } });
   if (request.method === "GET") return reply({ adventures: await db.list(account) });
+  const limit = request.method === "POST" ? maxPdfBase64 + maxNotesCharacters * 6 + 3000 : 30_000;
+  if(Number(request.headers.get("content-length")) > limit) return reply({ error: "Request is too large." },413);
   const raw = await request.text();
-  if (raw.length > 30000) return reply({ error: "Request is too large." },413);
+  if (raw.length > limit) return reply({ error: "Request is too large." },413);
   let data: unknown;
   try { data = JSON.parse(raw); } catch { return reply({ error: "Invalid request." },400); }
   if (request.method === "PATCH") {
@@ -48,8 +51,11 @@ export async function adventureApi(request: Request, db: AcademyStore, config: {
   }
   if (request.method !== "POST") return reply({ error: "Method unavailable." },405);
   const setup = setupSchema.safeParse(data);
-  if (!setup.success) return reply({ error: "Enter a topic, level, and duration." },400);
+  if (!setup.success) return reply({ error: "Check the topic, world details, difficulty, and duration." },400);
+  if (setup.data.notesPdf && !config.geminiKey) return reply({ error: "PDF notes require the Gemini connection. You can also paste the text or attach a Word file." },503);
+  if (setup.data.world && !config.geminiKey) return reply({ error: "World Generator needs the Gemini API connection." },503);
   const adventure = await prepareAdventure(setup.data,config.geminiKey || config.key,config.geminiKey ? (config.geminiModel || "gemini-flash-lite-latest") : config.model,Boolean(config.geminiKey));
+  if (setup.data.world && adventure.source==="sample") return reply({ error:adventure.notice },502);
   const id = crypto.randomUUID();
   await db.add({ user:account,id,topic:adventure.topic,plan:adventure.plan });
   return reply({ ...adventure,id });

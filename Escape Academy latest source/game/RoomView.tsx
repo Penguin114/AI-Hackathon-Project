@@ -5,17 +5,19 @@ import * as T from "three";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CircleDot, Mouse, Move } from "lucide-react";
 import { buildRoom, type Target } from "./scenery";
 import type { Theme } from "@/lib/plan";
+import type { WorldDesign } from "@/lib/world-design";
 
-type Props = { theme: Theme; index: number; unlocked: boolean; cabinetOpen: boolean; paused: boolean; labels: Record<Target,string>; onTarget: (target:Target)=>void; };
+type Props = { theme: Theme; world?: WorldDesign; index: number; unlocked: boolean; cabinetOpen: boolean; paused: boolean; active: boolean; remaining: number; stabilized: boolean; onCaught:()=>void; labels: Record<Target,string>; onTarget: (target:Target)=>void; };
 
 export default function RoomView(props: Props) {
   const frame=useRef<HTMLDivElement>(null);
+  const hazardLayer=useRef<HTMLDivElement>(null);
   const markers=useRef<Partial<Record<Target,HTMLButtonElement|null>>>({});
   const mobile=useRef(new Set<string>());
   const current=useRef(props);
   current.current=props;
   const [fallback,setFallback]=useState(false);
-  const { theme,index,labels,onTarget }=props;
+  const { theme,world,index,labels,onTarget }=props;
   const [nearby, setNearby] = useState<Target | null>(null);
   useEffect(()=>{
     const host=frame.current;
@@ -24,15 +26,16 @@ export default function RoomView(props: Props) {
     try { renderer=new T.WebGLRenderer({ antialias:true, powerPreference:"high-performance" }); }
     catch { setFallback(true); return; }
     const scene=new T.Scene();
-    const room=buildRoom(scene,theme,index);
+    const room=buildRoom(scene,theme,index,world);
     const camera=new T.PerspectiveCamera(65,1,.045,32);
     camera.rotation.order="YXZ";camera.position.copy(room.spawn);
+    camera.rotation.set(room.pitch,room.heading,0,"YXZ");
     renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
     renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
     renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.25;
     renderer.domElement.setAttribute("aria-label","First-person view of the current room");
     host.prepend(renderer.domElement);
-    let yaw=0,pitch=-.033, raf=0,prev=performance.now();
+    let yaw=room.heading,pitch=room.pitch, raf=0,prev=performance.now();
     let pointer:{ id:number; x:number; y:number; dragged:boolean } | null=null;
     const keys=new Set<string>();
     const size=()=>{const w=host.clientWidth,h=host.clientHeight; if(!w||!h)return; camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);};
@@ -54,17 +57,7 @@ export default function RoomView(props: Props) {
       pointer.x=e.clientX;pointer.y=e.clientY;
     };
     const ray=new T.Raycaster();
-    const sightline=new T.Raycaster();
-    const direction=new T.Vector3();
-    const reach=2.45;
-    const inReach=(target:Target)=>{
-      const distance=camera.position.distanceTo(room.anchors[target]);
-      if(distance>reach)return false;
-      direction.subVectors(room.anchors[target],camera.position).normalize();
-      sightline.set(camera.position,direction);
-      sightline.far=distance-.12;
-      return !sightline.intersectObjects(room.blockers,false).length;
-    };
+    const inReach=(target:Target)=>room.canInspect(target,camera.position);
     let focusedTarget:Target|null=null;
     const interact=()=>{if(focusedTarget && !current.current.paused)current.current.onTarget(focusedTarget);};
     const inspectKey=(event:KeyboardEvent)=>{
@@ -92,9 +85,16 @@ export default function RoomView(props: Props) {
     let elapsed=0;
     const reduceMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let pace=2.65;
+    let pursuedTime=0;
     const tick=(now:number)=>{
       const dt=Math.min((now-prev)/1000,.045);prev=now;
-      if(!current.current.paused){
+      const state=current.current;
+      if(state.active&&!state.paused)pursuedTime+=dt;
+      const hazard=room.hazard(dt,pursuedTime,state.remaining,camera.position,state.active&&!state.paused,state.stabilized,reduceMotion);
+      hazardLayer.current?.style.setProperty("--hazard-tint",String(hazard.tint));
+      hazardLayer.current?.style.setProperty("--waterline",(hazard.waterline*100)+"%");
+      if(hazard.caught)state.onCaught();
+      if(!state.paused&&!hazard.caught){
         const has=(...names:string[])=>names.some(n=>keys.has(n)||mobile.current.has(n));
         const forward=Number(has("w","arrowup"))-Number(has("s","arrowdown"));
         const strafe=Number(has("d","arrowright"))-Number(has("a","arrowleft"));
@@ -105,7 +105,7 @@ export default function RoomView(props: Props) {
           const fov=T.MathUtils.damp(camera.fov,sprinting?71:65,7,dt);
           if(Math.abs(fov-camera.fov)>.035){camera.fov=fov;camera.updateProjectionMatrix();}
         }
-        const speed=dt*pace/Math.max(1,Math.hypot(forward,strafe));
+        const speed=dt*pace*hazard.pace/Math.max(1,Math.hypot(forward,strafe));
         const x=camera.position.x+(strafe*Math.cos(yaw)-forward*Math.sin(yaw))*speed;
         const z=camera.position.z+(-forward*Math.cos(yaw)-strafe*Math.sin(yaw))*speed;
         if(room.canWalk(x,camera.position.z))camera.position.x=x;
@@ -122,7 +122,7 @@ export default function RoomView(props: Props) {
       room.drawer.position.z=T.MathUtils.lerp(room.drawer.position.z,current.current.cabinetOpen?.40:0,.12);
       if(open) room.dial.rotation.z-=dt*1.3;
       room.dust.position.y=Math.sin(now*.00039)*.13;
-      room.animate(reduceMotion?0:elapsed);
+      room.animate(reduceMotion?0:elapsed,state.stabilized);
       renderer.render(scene,camera);
       const w=host.clientWidth,h=host.clientHeight;
       let closest:Target|null=null;
@@ -152,9 +152,10 @@ export default function RoomView(props: Props) {
       window.removeEventListener("keydown",inspectKey);
       materials.forEach(m=>{for(const value of Object.values(m))if(value instanceof T.Texture)value.dispose();m.dispose();});renderer.dispose();canvas.remove();
     };
-  },[theme,index]);
+  },[theme,index,world]);
 
   return <div className={"room-view room-"+theme} ref={frame}>
+    <div className="world-hazard" ref={hazardLayer} aria-hidden="true"/>
     <div className="room-vignette" aria-hidden="true"/>
     {fallback ? <div className="webgl-fallback"><p>Explore the room’s stations.</p><div className="object-bar">{(Object.keys(labels) as Target[]).map(target=><button key={target} onClick={()=>onTarget(target)}>{labels[target]}</button>)}</div></div> : (Object.keys(labels) as Target[]).map(target=><button className={"marker marker-"+target} key={target} aria-label={labels[target]} ref={el=>{markers.current[target]=el;}} onClick={()=>onTarget(target)}><CircleDot size={15}/><span>{labels[target]}</span></button>)}
     <div className="view-controls"><span><Mouse size={14}/> Drag to look</span><span><Move size={14}/> WASD to move</span><span className="sprint-hint">Shift to sprint</span>{nearby&&<span>F to inspect</span>}</div>
