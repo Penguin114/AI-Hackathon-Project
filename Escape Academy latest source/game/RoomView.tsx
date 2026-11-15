@@ -24,7 +24,7 @@ export default function RoomView(props: Props) {
   const [fallback,setFallback]=useState(false);
   const { theme,world,index,labels,onTarget }=props;
   const [nearby, setNearby] = useState<Target | null>(null);
-  useEffect(()=>{wakeRenderer.current?.();},[props.paused,props.unlocked,props.cabinetOpen,props.stabilized]);
+  useEffect(()=>{wakeRenderer.current?.();},[props.paused,props.collapsing,props.unlocked,props.cabinetOpen,props.stabilized]);
   useEffect(()=>{
     if(!fallback||!props.collapsing)return;
     const started=performance.now();let frame=0;
@@ -109,9 +109,9 @@ export default function RoomView(props: Props) {
       const dt=Math.min((now-prev)/1000,.045);prev=now;
       const state=current.current;
       if(document.hidden)return;
-      // Keep the existing scene in memory, but stop simulation, raycasts and
-      // continuous GPU rendering while any panel covers the room.
-      if(state.paused){
+      // Stop continuous rendering behind panels, but finish the collapse
+      // animation before showing the failure screen.
+      if(state.paused&&!state.collapsing){
         keys.clear();mobile.current.clear();pointer=null;
         renderer.render(scene,camera);
         return;
