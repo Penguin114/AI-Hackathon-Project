@@ -1,12 +1,11 @@
 import { adventureApi } from "../lib/server";
-import { decodeRows, initialProgress, type AcademyStore, type StorageRow } from "../lib/db";
+import { initialProgress, type AcademyStore } from "../lib/db";
 // The build bundles the prerendered Next.js page and its static assets.
 import assets from "academy-assets";
 
 type Statement = {
   bind(...values: string[]): Statement;
   run(): Promise<unknown>;
-  all<T>(): Promise<{ results: T[] }>;
 };
 type Env = { DB: { prepare(sql:string):Statement; batch(statements:Statement[]):Promise<unknown> }; GEMINI_API_KEY?: string; GEMINI_MODEL?: string; OPENAI_API_KEY?: string; OPENAI_MODEL?: string };
 function store(db: Env["DB"]): AcademyStore {
@@ -19,10 +18,6 @@ function store(db: Env["DB"]): AcademyStore {
     },
     async update(user,id,progress) {
       await db.prepare("UPDATE adventures SET progress=?,updated=STRFTIME('%Y-%m-%d %H:%M:%f','now') WHERE id=? AND account_id=?").bind(JSON.stringify(progress),id,user).run();
-    },
-    async list(user) {
-      const {results} = await db.prepare("SELECT id,topic,title,progress FROM adventures WHERE account_id=? ORDER BY updated DESC, rowid DESC LIMIT 30").bind(user).all<StorageRow>();
-      return decodeRows(results);
     },
   };
 }

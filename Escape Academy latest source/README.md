@@ -15,7 +15,7 @@ Open http://localhost:3000. Use the Clockwork Tower preview to play immediately.
 
 For live custom topics, copy `.env.example` to `.env.local` and set `GEMINI_API_KEY` or `OPENAI_API_KEY`. Gemini is used when both are set. The browser only requests a plan from the application. The server uses structured output and validates the decoded plan before returning it. Generation errors and invalid plans fall back to a supported sample. See [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=chat).
 
-The local server assigns an HTTP-only guest session and stores the account, adventure plan, and progress in `data/academy.sqlite`. On Sites, the Worker uses platform sign-in and D1. The Journal shows progress for the current account. In a running adventure, Pause pauses the session and Resume continues from the current position.
+The local server assigns an HTTP-only guest session and stores the account, adventure plan, and progress in `data/academy.sqlite`. On Sites, the Worker uses platform sign-in and D1. In a running adventure, Pause pauses the session and Resume continues from the current position.
 
 ## Checks and builds
 
