@@ -23,6 +23,9 @@ const initial = "Turn anything you want to learn into an escape-room adventure."
 
 export default function Academy() {
   const [setup,setSetup]=useState<Setup>({...defaultSetup,topic:""});
+  const [contentMode,setContentMode]=useState<"topic"|"notes">("topic");
+  const [topicText,setTopicText]=useState("");
+  const [notesText,setNotesText]=useState("");
   const [attached,setAttached]=useState<NotesFile|null>(null);
   const [readingFile,setReadingFile]=useState(false);
   const [fileError,setFileError]=useState("");
@@ -36,7 +39,8 @@ export default function Academy() {
   const [historyStatus,setHistoryStatus]=useState("");
   const currentRequest=useRef<AbortController|null>(null);
   const topicInput=useRef<HTMLTextAreaElement>(null);
-  const notesInput=useRef<HTMLInputElement>(null);
+  const notesInput=useRef<HTMLTextAreaElement>(null);
+  const fileInput=useRef<HTMLInputElement>(null);
   const started=useRef(false);
   useEffect(()=>()=>currentRequest.current?.abort(),[]);
   useEffect(()=>{if(stage!=="home")window.scrollTo(0,0);},[stage]);
@@ -46,10 +50,16 @@ export default function Academy() {
   },[]);
   const home=()=>{ currentRequest.current?.abort();started.current=false;setStage("home");setSession(null);setNotice("");setResult(null);window.scrollTo(0,0); };
   const focus=(topic?:string)=>{
-    if(topic!==undefined)setSetup(prev=>({...prev,topic}));
+    if(topic!==undefined){
+      if(contentMode==="notes"){
+        setNotesText(topic);
+        setAttached(null);
+        setFileError("");
+      } else setTopicText(topic);
+    }
     if(stage!=="home")home();
     requestAnimationFrame(()=>{
-      const input=topicInput.current;
+      const input=contentMode==="notes"?notesInput.current:topicInput.current;
       input?.scrollIntoView({behavior:"smooth",block:"center"});
       input?.focus({preventScroll:true});
     });
@@ -103,19 +113,20 @@ export default function Academy() {
   }
   async function generate() {
     if(started.current||readingFile)return;
-    const input=setup.topic.trim();
-    const isNotes=input.length>100 || input.includes("\n");
-    if(input.length<2&&!attached){
-      setNotice("Enter a topic or attach your study notes.");
+    const usingNotes=contentMode==="notes";
+    const input=(usingNotes?notesText:topicText).trim();
+    const file=usingNotes?attached:null;
+    if(input.length<2&&!file){
+      setNotice(usingNotes?"Paste your notes or attach a notes file.":"Enter a topic of at least two characters.");
       return;
     }
-    const notes=[attached&&"text" in attached?attached.text:"",isNotes?input:""].filter(Boolean).join("\n\n");
+    const notes=usingNotes?[file&&"text" in file?file.text:"",input].filter(Boolean).join("\n\n"):"";
     if(notes.length>maxNotesCharacters){
       setNotice("Use up to 24,000 characters across the attached and pasted notes.");
       return;
     }
-    const notesPdf=attached&&"pdf" in attached?attached.pdf:undefined;
-    const settings:Setup={...setup,topic:isNotes||input.length<2?"Study notes":input,notes:notes||undefined,notesPdf};
+    const notesPdf=file&&"pdf" in file?file.pdf:undefined;
+    const settings:Setup={...setup,topic:usingNotes?"Study notes":input,notes:notes||undefined,notesPdf};
     started.current=true;setStage("loading");
     const controller=new AbortController();
     currentRequest.current=controller;
@@ -148,21 +159,32 @@ export default function Academy() {
       <div className="home-art" role="img" aria-label="A warmly lit clockwork tower room" />
       <div className="home-content"><div className="simple-intro"><h1>Learn your way <em>out.</em></h1><p>{initial}</p></div>
       <form className="simple-setup" onSubmit={e=>{e.preventDefault();void generate();}}>
-        <label htmlFor="topic">Topic or study notes</label>
-        <textarea ref={topicInput} id="topic" value={setup.topic} onChange={e=>{setSetup({...setup,topic:e.target.value});setNotice("");}} placeholder="Enter a topic or paste your notes here" minLength={2} maxLength={maxNotesCharacters} required={!attached} rows={6}/>
-        <div className="notes-upload">
-          <input ref={notesInput} type="file" hidden accept=".docx,.pdf,.txt,.md" onChange={event=>{
-            void attachNotes(event.currentTarget.files?.[0]);
-            event.currentTarget.value="";
-          }}/>
-          <button type="button" className="button secondary" disabled={readingFile} aria-describedby="notes-file-help"
-            onClick={()=>notesInput.current?.click()}><FileUp size={17}/>{readingFile?"Reading notes…":attached?"Replace notes file":"Add notes file"}</button>
-          <p id="notes-file-help">Word (.docx), PDF, TXT, or Markdown, up to 4 MB. Gemini uses the notes to write questions.</p>
-          {attached&&<div className="notes-attachment"><span role="status">{attached.name}</span>
-            <button type="button" className="icon-button" aria-label="Remove notes file" disabled={readingFile} onClick={()=>{setAttached(null);setFileError("");setNotice("");}}><X size={16}/></button>
-          </div>}
-          {fileError&&<p className="inline-error" role="alert">{fileError}</p>}
+        <div className="content-mode" role="group" aria-label="Choose what to study">
+          <button type="button" className={contentMode==="topic"?"selected":""} aria-pressed={contentMode==="topic"} onClick={()=>{setContentMode("topic");setNotice("");}}>Topic</button>
+          <button type="button" className={contentMode==="notes"?"selected":""} aria-pressed={contentMode==="notes"} onClick={()=>{setContentMode("notes");setNotice("");}}>Notes</button>
         </div>
+        {contentMode==="topic"?<>
+          <label htmlFor="topic">What topic do you want to learn?</label>
+          <textarea ref={topicInput} id="topic" value={topicText} onChange={e=>{setTopicText(e.target.value);setNotice("");}}
+            placeholder="For example: photosynthesis or the causes of World War I" minLength={2} maxLength={100} required rows={4}/>
+        </>:<>
+          <label htmlFor="study-notes">Paste your study notes</label>
+          <textarea ref={notesInput} id="study-notes" value={notesText} onChange={e=>{setNotesText(e.target.value);setNotice("");}}
+            placeholder="Paste your class notes here or attach a notes file below." minLength={2} maxLength={maxNotesCharacters} required={!attached} rows={6}/>
+          <div className="notes-upload">
+            <input ref={fileInput} type="file" hidden accept=".docx,.pdf,.txt,.md" onChange={event=>{
+              void attachNotes(event.currentTarget.files?.[0]);
+              event.currentTarget.value="";
+            }}/>
+            <button type="button" className="button secondary" disabled={readingFile} aria-describedby="notes-file-help"
+              onClick={()=>fileInput.current?.click()}><FileUp size={17}/>{readingFile?"Reading notes…":attached?"Replace notes file":"Add notes file"}</button>
+            <p id="notes-file-help">Word (.docx), PDF, TXT, or Markdown, up to 4 MB. Gemini uses the notes to write questions.</p>
+            {attached&&<div className="notes-attachment"><span role="status">{attached.name}</span>
+              <button type="button" className="icon-button" aria-label="Remove notes file" disabled={readingFile} onClick={()=>{setAttached(null);setFileError("");setNotice("");}}><X size={16}/></button>
+            </div>}
+            {fileError&&<p className="inline-error" role="alert">{fileError}</p>}
+          </div>
+        </>}
         <label htmlFor="world">World</label>
         <select id="world" value={setup.preferredTheme??""} onChange={e=>{
           const value=e.target.value;
@@ -180,7 +202,7 @@ export default function Academy() {
       </div>
     </main>}
     {stage==="loading" && <main className="shell state-wrap"><div className="state-card preparing"><div className="state-icon"><Compass size={42}/></div><span className="eyebrow">PREPARING YOUR ADVENTURE</span><h1>Setting the scene.</h1><p>Building your room and puzzles. This can take a minute.</p><div className="load-bar"/><button className="text-button" onClick={home}>Cancel</button></div></main>}
-    {stage==="recovery" && <main className="shell state-wrap"><div className="state-card"><div className="state-icon"><KeyRound size={34}/></div><h1>There’s another door.</h1><p>{notice}</p><div className="state-actions"><button className="button primary" onClick={()=>session?launch(session):void sample(defaultSetup)}>Play sample adventure <ArrowRight size={18}/></button><button className="button secondary" onClick={()=>{setStage("home");void generate();}}>Try again</button><button className="button secondary" onClick={()=>focus()}>Edit my topic</button></div></div></main>}
+    {stage==="recovery" && <main className="shell state-wrap"><div className="state-card"><div className="state-icon"><KeyRound size={34}/></div><h1>There’s another door.</h1><p>{notice}</p><div className="state-actions"><button className="button primary" onClick={()=>session?launch(session):void sample(defaultSetup)}>Play sample adventure <ArrowRight size={18}/></button><button className="button secondary" onClick={()=>{setStage("home");void generate();}}>Try again</button><button className="button secondary" onClick={()=>focus()}>{contentMode==="notes"?"Edit my notes":"Edit my topic"}</button></div></div></main>}
     {stage==="play" && session && <PlayRoom {...session} onLeave={home} onRestart={()=>void sampleOrRestart()} onComplete={progress=>{setResult(progress);setStage("done");}}/>}
     {stage==="done" && result && session && <main className="shell state-wrap"><div className="state-card recap"><div className="state-icon"><GraduationCap size={40}/></div><span className="eyebrow">ADVENTURE COMPLETE</span><h1>You escaped!</h1><p>{session.plan.title}</p><div className="recap-stats"><span><KeyRound size={17}/> {result.solved} puzzles solved</span><span><Sparkles size={17}/> {result.hints} hints</span><span><Clock3 size={17}/> {Math.floor(result.seconds/60)}m {result.seconds%60}s</span></div><div className="recap-lists"><div><h2>What you learned</h2><ul>{session.plan.objectives.map(x=><li key={x}><Check size={17}/>{x}</li>)}</ul></div><div><h2>What to review</h2><ul>{session.plan.review.map(x=><li key={x}><ChevronRight size={17}/>{x}</li>)}</ul></div><div><h2>Puzzles solved</h2><ul>{session.plan.rooms.map(x=><li key={x.name}><KeyRound size={16}/><span><strong>{x.puzzle.name}</strong><br/>{x.puzzle.explanation}</span></li>)}</ul></div></div><button className="button primary" onClick={()=>focus("")}>Play another room <ArrowRight size={18}/></button></div></main>}
     
